@@ -63,6 +63,21 @@ export const checkLandDocument = (landId, formData) =>
 export const landQrUrl = (landId, download = false) =>
   `${api.defaults.baseURL}/verify/land/${landId}/qr${download ? "?download=1" : ""}`;
 
+/**
+ * Decrypted original deed for a verified Land ID.
+ * Uses a bare axios call so a 401 stays on the page instead of redirecting.
+ * The API serves it to registrars only unless VIEW_DOCUMENT_POLICY=public.
+ */
+export async function fetchLandOriginal(landId, recordId) {
+  const token = sessionStorage.getItem("token");
+  const qs = recordId ? `?record=${encodeURIComponent(recordId)}` : "";
+  return axios.get(`${api.defaults.baseURL}/verify/land/${landId}/document${qs}`, {
+    responseType: "blob",
+    timeout: 60000,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
 /** Fetches the QR PNG and saves it (navigations bypass the dev proxy). */
 export async function downloadLandQr(landId) {
   const res = await api.get(`/verify/land/${landId}/qr`, { responseType: "blob" });

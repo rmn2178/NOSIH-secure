@@ -9,9 +9,32 @@ import sharp from "sharp";
 const QR_SIZE = 480;
 const LABEL_HEIGHT = 84;
 
-export function buildVerifyUrl(landId) {
-  const base = process.env.VERIFY_BASE_URL || "http://localhost:3000/verify";
-  return `${base}?landId=${encodeURIComponent(landId)}`;
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+/**
+ * Public base URL for the verify page.
+ *
+ * Production (single Vercel domain): derived from the incoming request, so no
+ * deployment-specific env var is needed. Locally the dev frontend runs on a
+ * different port, so VERIFY_BASE_URL (localhost) wins there.
+ */
+export function verifyBaseFrom(req) {
+  const configured = (process.env.VERIFY_BASE_URL || "").replace(/\/$/, "");
+  const host = (req?.get?.("x-forwarded-host") || req?.get?.("host") || "").split(",")[0].trim();
+  const proto = (req?.get?.("x-forwarded-proto") || req?.protocol || "https").split(",")[0].trim();
+
+  if (configured) {
+    const configuredIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(configured);
+    if (!configuredIsLocal) return configured;
+    if (LOCAL_HOST.test(host)) return configured;
+  }
+
+  if (host && !/^https?:\/\//.test(host)) return `${proto}://${host}/verify`;
+  return configured || "http://localhost:3000/verify";
+}
+
+export function buildVerifyUrl(landId, req) {
+  return `${verifyBaseFrom(req)}?landId=${encodeURIComponent(landId)}`;
 }
 
 const escapeXml = (s) => String(s).replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -19,8 +42,8 @@ const escapeXml = (s) => String(s).replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(
 /**
  * @returns {{ verifyUrl: string, qrDataUrl: string, png: Buffer }}
  */
-export async function generateLandQr(landId) {
-  const verifyUrl = buildVerifyUrl(landId);
+export async function generateLandQr(landId, req) {
+  const verifyUrl = buildVerifyUrl(landId, req);
   const qrPng = await QRCode.toBuffer(verifyUrl, {
     width: QR_SIZE,
     margin: 2,

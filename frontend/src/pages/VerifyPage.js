@@ -3,9 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import {
   Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, ArrowRight,
-  FileSearch, FileText, MapPin, Info, CircleCheck, CircleAlert,
+  FileSearch, FileText, MapPin, Info, CircleCheck, CircleAlert, Lock, Download, X,
 } from "lucide-react";
-import { verifyLand, checkLandDocument, landQrUrl } from "../utils/api";
+import { verifyLand, checkLandDocument, landQrUrl, fetchLandOriginal } from "../utils/api";
 import logo from "../assets/nosih-logo.png";
 
 const TX_EXPLORER_URL = process.env.REACT_APP_TX_EXPLORER_URL || "https://amoy.polygonscan.com/tx";
@@ -83,12 +83,49 @@ export default function VerifyPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [viewingId, setViewingId] = useState("");
+  const [viewErrors, setViewErrors] = useState({});
+  const [docView, setDocView] = useState(null);
+
+  function closeDoc() {
+    if (docView?.url) URL.revokeObjectURL(docView.url);
+    setDocView(null);
+  }
+
+  useEffect(() => {
+    if (!docView) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") closeDoc(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [docView]);
+
+  async function openOriginal(recordId) {
+    if (!data) return;
+    setViewErrors((m) => ({ ...m, [recordId]: "" }));
+    setViewingId(recordId);
+    try {
+      const res = await fetchLandOriginal(data.landId, recordId);
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      setDocView({ recordId, url });
+    } catch (err) {
+      const status = err.response?.status;
+      let msg = "Could not load the registered deed.";
+      if (status === 401) msg = "Sign in as a registrar to view the original deed.";
+      else if (status === 409) msg = "This record is not confirmed on-chain, so its deed is not served.";
+      else if (status === 404) msg = "This record's deed could not be found.";
+      setViewErrors((m) => ({ ...m, [recordId]: msg }));
+    } finally {
+      setViewingId("");
+    }
+  }
 
   async function runVerify(id) {
     const value = id.trim().toUpperCase();
     if (!value) return;
     setError("");
     setData(null);
+    setViewErrors({});
+    setViewingId("");
     setLoading(true);
     try {
       const res = await verifyLand(value);
@@ -211,19 +248,50 @@ export default function VerifyPage() {
                           {integrityOk(r.integrity) ? "On-chain match" : r.integrity?.error ? "Chain unreachable" : "On-chain mismatch"}
                         </span>
                       </div>
+                      {r.previousRecordId && (
+                        <div className="timeline-link">
+                          Linked from <code>{r.previousRecordId}</code>
+                        </div>
+                      )}
                       {r.status === "revoked" && (
                         <div className="timeline-revoked">
-                          Revoked {fmtDate(r.revokedAt)}{r.revokeReason ? `: ${r.revokeReason}` : ""}
+                          <span>
+                            Revoked {fmtDate(r.revokedAt)}{r.revokeReason ? `: ${r.revokeReason}` : ""}
+                          </span>
                           {r.revokedTxHash && (
                             <a href={`${TX_EXPLORER_URL}/${r.revokedTxHash}`} target="_blank" rel="noreferrer" className="inline-link">
-                              {" "}Revocation tx <ExternalLink size={12} {...ICON} />
+                              Revocation tx <ExternalLink size={12} {...ICON} />
                             </a>
                           )}
                         </div>
                       )}
+                      <div className="timeline-actions">
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => openOriginal(r.recordId)}
+                          disabled={Boolean(viewingId) || !integrityOk(r.integrity)}
+                          title={integrityOk(r.integrity)
+                            ? "Decrypt this ownership's deed and check it against the chain"
+                            : "This ownership record is not confirmed on-chain"}
+                        >
+                          <FileText size={14} {...ICON} />
+                          {viewingId === r.recordId ? "Decrypting…" : "View original document"}
+                        </button>
+                        {viewErrors[r.recordId] && (
+                          <span className="doc-access-error">
+                            <Lock size={13} {...ICON} />
+                            {viewErrors[r.recordId]}
+                            {viewErrors[r.recordId].startsWith("Sign in") && <a href="/login">Sign in</a>}
+                          </span>
+                        )}
+                      </div>
                       <details className="timeline-hashes">
                         <summary>Proof data</summary>
                         <div><span>Document hash</span><code className="hash-cell">{r.documentHash}</code></div>
+                        {r.previousRecordHash && (
+                          <div><span>Previous record hash</span><code className="hash-cell">{r.previousRecordHash}</code></div>
+                        )}
                         <div><span>Encrypted CID</span><code className="hash-cell">{r.ipfsCID}</code></div>
                         <div><span>Registered on-chain</span>{r.registeredAt ? new Date(r.registeredAt).toLocaleString() : "—"}</div>
                       </details>
@@ -246,6 +314,37 @@ export default function VerifyPage() {
       <div className="verify-footer">
         <a href="/login">Registrar portal →</a>
       </div>
+
+      {docView && (
+        <div
+          className="doc-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Original deed ${docView.recordId}`}
+          onClick={(e) => { if (e.target === e.currentTarget) closeDoc(); }}
+        >
+          <div className="doc-modal-panel">
+            <div className="doc-modal-head">
+              <span className="doc-modal-title">
+                <FileText size={16} {...ICON} />
+                Original deed · <code>{docView.recordId}</code>
+              </span>
+              <div className="doc-modal-actions">
+                <a className="btn btn-outline btn-sm" href={docView.url} download={`${docView.recordId}.pdf`}>
+                  <Download size={14} {...ICON} /> Download
+                </a>
+                <a className="btn btn-outline btn-sm" href={docView.url} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14} {...ICON} /> New tab
+                </a>
+                <button type="button" className="btn btn-outline btn-sm" onClick={closeDoc}>
+                  <X size={14} {...ICON} /> Close
+                </button>
+              </div>
+            </div>
+            <iframe src={docView.url} title={`Deed ${docView.recordId}`} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

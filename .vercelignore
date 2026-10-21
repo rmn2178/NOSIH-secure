@@ -1,0 +1,10 @@
+# Never upload local secrets or generated output to Vercel.
+node_modules/
+**/node_modules/
+**/.env
+**/.env.local
+frontend/build/
+artifacts/
+cache/
+test/
+*.log

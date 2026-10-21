@@ -1,0 +1,6 @@
+.env
+.env.*
+eng.traineddata
+supabase/
+scripts/
+*.log

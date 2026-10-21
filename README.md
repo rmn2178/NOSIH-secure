@@ -17,6 +17,7 @@
 - [Install & Database](#install--database)
 - [Smart Contract](#smart-contract)
 - [Run Locally](#run-locally)
+- [Deploy to Vercel](#deploy-to-vercel)
 - [API Reference](#api-reference)
 - [Troubleshooting](#troubleshooting)
 
@@ -95,6 +96,7 @@ Events: `RegistrarAdded`, `RegistrarRemoved`, `RecordRegistered`, `RecordRevoked
 - **No personal data on-chain**: names, government IDs, survey numbers and boundaries live only in Supabase (RLS enabled, service-role access from the backend only).
 - **Owner registry IDs** (`OWN-XXXXXXXX`) are used instead of identities; on-chain only their keccak256 hash appears. Government IDs are stored as keyed hashes, never plaintext.
 - Survey numbers and property IDs are **peppered HMACs**, so they cannot be brute-forced from the chain without `HASH_PEPPER`.
+- The verify page can open the **current deed**, but only after the record is confirmed on-chain and only for signed-in registrars. Set `VIEW_DOCUMENT_POLICY=public` to serve it to anyone holding the Land ID (this makes deeds public).
 - Uploads are restricted to PDFs (MIME + `%PDF-` magic bytes, max 15 MB). Identical PDFs are rejected (`documentHash` unique).
 
 ---
@@ -222,6 +224,63 @@ Health check: `GET http://localhost:5000/api/health`.
 
 ---
 
+## Deploy to Vercel
+
+The repo is a single Vercel project using **Services** (beta, all plans): the React app and the Express API build together, share one domain, and route by path. No URLs or CORS to wire up.
+
+```
+https://<project>.vercel.app/          → frontend (React)
+https://<project>.vercel.app/api/*     → backend (Express)
+```
+
+### Steps
+
+1. **Import the repository** at [vercel.com/new](https://vercel.com/new). Leave the Root Directory as the repo root; `vercel.json` declares both services.
+2. **Add environment variables** (Project → Settings → Environment Variables). Copy the values from your local `backend/.env`:
+
+   ```
+   ALCHEMY_AMOY_URL
+   CONTRACT_ADDRESS
+   CHAIN_ID
+   ISSUER_PRIVATE_KEY
+   SUPABASE_URL
+   SUPABASE_SERVICE_ROLE_KEY
+   PINATA_JWT
+   JWT_SECRET
+   JWT_EXPIRES_IN
+   DOCUMENT_ENC_KEY
+   HASH_PEPPER
+   GEMINI_API_KEY
+   GEMINI_MODEL
+   ```
+
+   Optional: `PINATA_API_KEY`, `PINATA_API_SECRET`, `IPFS_GATEWAY_BASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (seed only).
+3. **Deploy.** That's it.
+
+Nothing else is deployment-specific:
+
+- `REACT_APP_API_URL` is not needed; the frontend calls same-origin `/api`.
+- `VERIFY_BASE_URL` is only used locally. In production the QR verify URL is derived from the incoming request, so QR codes always point at the deployment domain (including custom domains).
+- `MAX_UPLOAD_MB` defaults to 4 when `VERCEL` is set.
+- `FRONTEND_URL` (CORS) only matters if you later split the frontend onto a different domain.
+
+The frontend service rewrites deep links to `index.html`, so `/register`, `/records` and `/verify?landId=…` survive a refresh.
+
+### Vercel limits that matter here
+
+- **Request body: 4.5 MB.** Vercel rejects larger uploads before the app runs, so the API caps uploads at 4 MB on Vercel with a clear 413. Deeds larger than that need a direct-to-blob upload flow or a non-serverless host for the API.
+- **Duration: 300 s** (Fluid compute default), enough for AI extraction and the on-chain write.
+- **Bundle: 250 MB** uncompressed — the current backend dependencies fit.
+- **Filesystem:** read-only except `/tmp`; deed extraction already uses `os.tmpdir()`.
+
+Run `npm run seed:admin` locally (not on Vercel) if you ever need to recreate the admin user. The Supabase schema is applied separately via the SQL editor.
+
+### Separate projects (alternative)
+
+If Services is unavailable on your account, deploy twice: backend Root Directory `backend` (Express preset) and frontend Root Directory `frontend` (CRA preset). Then set `REACT_APP_API_URL=https://<backend>.vercel.app/api` on the frontend, and `FRONTEND_URL` plus `VERIFY_BASE_URL` on the backend.
+
+---
+
 ## API Reference
 
 ### Registrar (`/api/land`, Bearer JWT)
@@ -242,6 +301,7 @@ Health check: `GET http://localhost:5000/api/health`.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/land/:landId` | Parcel summary, ownership timeline, per-record chain integrity |
+| GET | `/land/:landId/document` | Decrypted deed of the current record, or `?record=REC-XXXXXXXX` for a specific ownership. Registrar-only by default; set `VIEW_DOCUMENT_POLICY=public` to open it to anyone with the Land ID. Served only after that record's on-chain check passes |
 | POST | `/land/:landId/document` | Multipart `deed` → whether the PDF matches a registered version |
 | GET | `/land/:landId/qr` | QR PNG (`?download=1` for attachment) |
 

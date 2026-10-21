@@ -1,9 +1,12 @@
 {
   "name": "nosih-backend",
   "version": "1.0.0",
-  "description": "NOSIH – Decentralized Certificate Authentication Backend",
+  "description": "NOSIH – Land deed registry backend",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
@@ -26,7 +29,6 @@
     "pdf-to-png-converter": "^3.11.0",
     "qrcode": "^1.5.3",
     "sharp": "^0.35.2",
-    "tesseract.js": "^7.0.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

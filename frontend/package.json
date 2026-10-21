@@ -2,6 +2,9 @@
   "name": "nosih-frontend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.8.4",
     "axios": "^1.6.2",

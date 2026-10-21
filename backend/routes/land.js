@@ -17,6 +17,7 @@
 
 import { Router } from "express";
 import multer from "multer";
+import { MAX_UPLOAD_BYTES } from "../config.js";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -44,7 +45,7 @@ const OWNER_JOIN =
 // ── PDF-only upload ─────────────────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_, file, cb) => {
     if (file.mimetype !== "application/pdf") return cb(httpError(400, "Only PDF deeds are accepted"), false);
     cb(null, true);
@@ -303,7 +304,7 @@ router.post("/register", protect, upload.single("deed"), async (req, res) => {
     const { txHash, registeredAt } = await registerRecordOnChain(onChain);
 
     // 7. QR showing the Land ID
-    const { verifyUrl, qrDataUrl } = await generateLandQr(land.landId);
+    const { verifyUrl, qrDataUrl } = await generateLandQr(land.landId, req);
 
     // 8. Move the head: unset old latest, insert new latest (restore on failure)
     if (head) {

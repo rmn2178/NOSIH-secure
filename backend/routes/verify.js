@@ -1,7 +1,8 @@
 /**
- * Public Verification Routes — NO authentication
+ * Public Verification Routes — NO authentication by default
  *
  * GET  /api/verify/land/:landId           Ownership timeline (owner registry IDs only, no names)
+ * GET  /api/verify/land/:landId/document  Decrypted deed of the current record (policy-gated)
  * POST /api/verify/land/:landId/document  Upload a deed PDF → hash match against registered versions
  * GET  /api/verify/land/:landId/qr        QR PNG with the Land ID label
  *
@@ -12,10 +13,13 @@
 
 import { Router } from "express";
 import multer from "multer";
+import jwt from "jsonwebtoken";
+import { MAX_UPLOAD_BYTES } from "../config.js";
 import { supabase } from "../supabase.js";
 import { getRecordFromChain } from "../services/blockchain.js";
 import { generateLandQr } from "../services/qr.js";
-import { computeDocumentHash, isLandId } from "../services/landIdentity.js";
+import { fetchIPFSFile } from "../services/ipfs.js";
+import { computeDocumentHash, decryptDocument, isLandId, isRecordId } from "../services/landIdentity.js";
 
 const router = Router();
 
@@ -25,7 +29,7 @@ const DISCLAIMER =
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_, file, cb) =>
     file.mimetype === "application/pdf"
       ? cb(null, true)
@@ -33,7 +37,7 @@ const upload = multer({
 });
 
 const PUBLIC_COLUMNS =
-  "land_id, record_id, previous_record_id, previous_owner_id, current_owner_id, property_id, " +
+  "land_id, record_id, previous_record_id, previous_record_hash, previous_owner_id, current_owner_id, property_id, " +
   "jurisdiction_code, document_hash, ipfs_cid, record_id_hash, registered_at, village, taluk, district, state, " +
   "document_type, registration_date, sro_office, tx_hash, is_latest, status, revoked_tx_hash, revoked_at, " +
   "revoke_reason, created_at";
@@ -82,6 +86,7 @@ function publicRecord(row, integrity) {
   return {
     recordId: row.record_id,
     previousRecordId: row.previous_record_id,
+    previousRecordHash: row.previous_record_hash,
     previousOwnerId: row.previous_owner_id,
     currentOwnerId: row.current_owner_id,
     documentType: row.document_type,
@@ -132,6 +137,90 @@ router.get("/land/:landId", async (req, res) => {
   } catch (err) {
     console.error("[verify/land]", err);
     res.status(500).json({ error: err.message || "Verification failed" });
+  }
+});
+
+// ── View the registered deed (decrypted) ────────────────
+// The file on IPFS is ciphertext. Only serve plaintext after the record is
+// confirmed on-chain, and only to registrars unless the deployment explicitly
+// opts into public viewing with VIEW_DOCUMENT_POLICY=public.
+const VIEW_DOCUMENT_POLICY = (process.env.VIEW_DOCUMENT_POLICY || "registrar").toLowerCase();
+
+function optionalUser(req) {
+  const header = req.headers.authorization || "";
+  if (!header.startsWith("Bearer ")) return null;
+  try {
+    return jwt.verify(header.slice(7), process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+router.get("/land/:landId/document", async (req, res) => {
+  try {
+    const landId = parseLandId(req.params.landId);
+    if (!landId) return res.status(400).json({ error: "Invalid Land ID" });
+
+    const requestedRecord = String(req.query.record || "").trim().toUpperCase();
+    if (requestedRecord && !isRecordId(requestedRecord)) {
+      return res.status(400).json({ error: "Record ID must look like REC-XXXXXXXX" });
+    }
+
+    const viewer = optionalUser(req);
+    if (VIEW_DOCUMENT_POLICY !== "public" && !viewer) {
+      return res.status(401).json({
+        error: "Sign in as a registrar to view the registered deed",
+        policy: VIEW_DOCUMENT_POLICY,
+      });
+    }
+
+    let query = supabase
+      .from("land_records")
+      .select(
+        "record_id, record_id_hash, land_id, ipfs_cid, enc_iv, enc_tag, document_hash, " +
+        "property_id, status, is_latest, original_filename"
+      )
+      .eq("land_id", landId);
+
+    query = requestedRecord ? query.eq("record_id", requestedRecord) : query.eq("is_latest", true);
+
+    const { data: row, error } = await query.maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) {
+      return res.status(404).json({
+        error: requestedRecord
+          ? `Record ${requestedRecord} does not belong to ${landId}`
+          : `No current record for ${landId}`,
+      });
+    }
+
+    const integrity = await chainCheck(row);
+    if (!integrity.onChain || !integrity.documentHashMatch) {
+      return res.status(409).json({
+        error: "This record could not be confirmed on-chain, so the deed is not served",
+      });
+    }
+
+    const file = await fetchIPFSFile(row.ipfs_cid);
+    const pdf = decryptDocument(file.buffer, row.enc_iv, row.enc_tag);
+    const intact = computeDocumentHash(pdf) === row.document_hash;
+
+    console.log(
+      `[verify/document:view] ${row.record_id} fetched ${file.buffer.length} encrypted bytes ` +
+      `from ${file.sourceUrl} (hash match: ${intact})`
+    );
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${row.record_id}.pdf"`);
+    res.setHeader("X-Record-Id", row.record_id);
+    res.setHeader("X-IPFS-CID", row.ipfs_cid);
+    res.setHeader("X-IPFS-Source", file.sourceUrl);
+    res.setHeader("X-Document-Hash-Match", String(intact));
+    res.setHeader("Cache-Control", "private, no-store");
+    res.send(pdf);
+  } catch (err) {
+    console.error("[verify/document:view]", err);
+    res.status(err.status || 502).json({ error: err.message || "Unable to load the registered deed" });
   }
 });
 
@@ -198,7 +287,7 @@ router.get("/land/:landId/qr", async (req, res) => {
       .eq("land_id", landId);
     if (!count) return res.status(404).json({ error: "Unknown Land ID" });
 
-    const { png } = await generateLandQr(landId);
+    const { png } = await generateLandQr(landId, req);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "public, max-age=86400");
     if (req.query.download) res.setHeader("Content-Disposition", `attachment; filename="${landId}-QR.png"`);

@@ -1383,6 +1383,12 @@ textarea:focus {
 .chain-check.ok { color: var(--success); }
 .chain-check.bad { color: var(--danger); }
 
+.timeline-link { margin-top: 8px; font-size: .78rem; color: var(--text-muted); }
+.timeline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.timeline-actions .btn { padding: 6px 12px; font-size: .8rem; }
+.doc-access-error { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--danger); font-size: .8rem; }
+.doc-access-error a { color: inherit; font-weight: 600; text-decoration: underline; }
+
 .timeline { list-style: none; position: relative; padding-left: 22px; }
 .timeline::before {
   content: ""; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: var(--card-border);
@@ -1407,7 +1413,13 @@ textarea:focus {
 .chain-pill { padding: 2px 8px; border-radius: 99px; font-weight: 600; font-size: .72rem; }
 .chain-pill.ok { background: var(--success-bg); color: var(--success); }
 .chain-pill.bad { background: var(--danger-bg); color: var(--danger); }
-.timeline-revoked { margin-top: 8px; font-size: .82rem; color: var(--danger); }
+.timeline-revoked {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+  margin-top: 8px; font-size: .82rem; color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.timeline-revoked a { color: inherit; }
+.timeline-revoked a:hover { color: var(--danger); }
 .timeline-hashes { margin-top: 10px; font-size: .78rem; }
 .timeline-hashes summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
 .timeline-hashes div { display: grid; grid-template-columns: 140px 1fr; gap: 8px; padding: 4px 0; }
@@ -1426,4 +1438,33 @@ textarea:focus {
 @media (max-width: 760px) {
   .land-id-panel, .register-done-body { grid-template-columns: 1fr; }
   .land-summary { flex-direction: column; }
+}
+
+/* ── Original deed viewer ───────────────────────────────── */
+.doc-modal {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(24, 26, 30, .6);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.doc-modal-panel {
+  display: flex; flex-direction: column;
+  width: min(1000px, 100%); height: min(88vh, 900px);
+  background: var(--surface); border: 1px solid var(--card-border);
+  border-radius: 12px; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+}
+.doc-modal-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--card-border);
+}
+.doc-modal-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-right: auto; font-weight: 600; font-size: .9rem;
+}
+.doc-modal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.doc-modal-panel iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+
+@media (max-width: 640px) {
+  .doc-modal { padding: 0; }
+  .doc-modal-panel { height: 100vh; border-radius: 0; }
 }
