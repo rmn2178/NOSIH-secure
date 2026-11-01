@@ -30,6 +30,39 @@ api.interceptors.response.use(
 
 export default api;
 
+/**
+ * Turns any API error into a string that is safe to render.
+ *
+ * The backend answers `{ error: "..." }`, but a platform-level failure
+ * (Vercel, a proxy, a CDN) answers `{ error: { code, message } }`. Rendering
+ * that object directly makes React throw #31 and unmount the whole tree, so
+ * the user gets a blank page instead of a message. Everything that shows an
+ * error must go through here.
+ */
+export function apiErrorMessage(err, fallback = "Something went wrong") {
+  const asText = (value) => {
+    if (typeof value === "string") return value.trim();
+    if (value && typeof value === "object") {
+      if (typeof value.message === "string") return value.message.trim();
+      if (typeof value.code === "string") return value.code.trim();
+    }
+    return "";
+  };
+
+  const data = err?.response?.data;
+
+  const fromBody = asText(data?.error) || asText(data?.message);
+  if (fromBody) return fromBody;
+
+  // Some gateways answer with a plain-text body.
+  if (typeof data === "string" && data.trim()) return data.trim();
+
+  const fromError = asText(err);
+  if (fromError) return fromError;
+
+  return fallback;
+}
+
 // ── Auth ─────────────────────────────────────────────────
 export const login = (email, password) =>
   api.post("/auth/login", { email, password });

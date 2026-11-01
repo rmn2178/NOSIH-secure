@@ -4,7 +4,7 @@ import {
   FileUp, FileText, ScanText, Landmark, Link2, MapPin, Users, Ruler,
   ScrollText, Download, ExternalLink, RotateCcw, CircleCheck, Sparkles,
 } from "lucide-react";
-import { extractDeed, previewLand, registerDeed } from "../utils/api";
+import { extractDeed, previewLand, registerDeed, apiErrorMessage } from "../utils/api";
 import Layout from "../components/Layout";
 
 const TX_EXPLORER_URL = process.env.REACT_APP_TX_EXPLORER_URL || "https://amoy.polygonscan.com/tx";
@@ -75,7 +75,7 @@ export default function RegisterPage() {
         ? { type: "success", text: "Fields were pre-filled from the deed. Review every value before registering." }
         : { type: "error", text: res.error || "Could not read the deed. Please fill the form manually." });
     } catch (err) {
-      setExtractNote({ type: "error", text: err.response?.data?.error || "AI service unavailable. Please fill the form manually." });
+      setExtractNote({ type: "error", text: apiErrorMessage(err, "AI service unavailable. Please fill the form manually.") });
     }
     setUiState("form");
   }, []);
@@ -103,7 +103,8 @@ export default function RegisterPage() {
         if (seq === previewSeq.current) {
           setPreview(null);
           const d = err.response?.data;
-          setPreviewError(d?.details || d?.error || "Preview unavailable");
+          const detailText = typeof d?.details === "string" ? d.details : "";
+          setPreviewError(detailText || apiErrorMessage(err, "Preview unavailable"));
         }
       }
     }, 450);
@@ -145,7 +146,9 @@ export default function RegisterPage() {
       setUiState("done");
     } catch (err) {
       const d = err.response?.data;
-      let msg = d?.details ? `${d.error}: ${d.details}` : d?.error || err.message || "Registration failed";
+      const headline = apiErrorMessage(err, "Registration failed");
+      const detailText = typeof d?.details === "string" ? d.details : "";
+      let msg = detailText ? `${headline}: ${detailText}` : headline;
       if (d?.existingRecordId) msg += ` (record ${d.existingRecordId}, ${d.existingLandId})`;
       setError(msg);
       setUiState("form");

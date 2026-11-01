@@ -10,13 +10,37 @@
  */
 
 import fs from "fs";
-import { pdfToPng } from "pdf-to-png-converter";
 import { createRequire } from "module";
-import sharp from "sharp";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// pdf-to-png-converter and sharp are native modules. They are loaded on first
+// use so a platform-level binary problem cannot kill the whole function at
+// import time — only the scanned-PDF extraction path would be affected.
+let pdfToPngPromise = null;
+function getPdfToPng() {
+  if (!pdfToPngPromise) {
+    pdfToPngPromise = import("pdf-to-png-converter").then((m) => m.pdfToPng);
+  }
+  return pdfToPngPromise;
+}
+
+let sharpPromise = null;
+function getSharp() {
+  if (!sharpPromise) sharpPromise = import("sharp").then((m) => m.default ?? m);
+  return sharpPromise;
+}
+
 const require = createRequire(import.meta.url);
-const { PDFParse } = require("pdf-parse"); // v2+ exports a class
+
+// pdf-parse v2+ exports a class. Loaded on first use for the same reason as
+// the native modules above.
+let pdfParsePromise = null;
+function getPDFParse() {
+  if (!pdfParsePromise) {
+    pdfParsePromise = Promise.resolve(require("pdf-parse").PDFParse);
+  }
+  return pdfParsePromise;
+}
 
 // gemini-3.6-flash is the fastest model answering reliably (3.8 hangs).
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
@@ -92,6 +116,7 @@ export async function extractDeedMetadata(filePath, originalname = "deed.pdf") {
 async function tryPdfTextLayer(filePath) {
   let parser;
   try {
+    const PDFParse = await getPDFParse();
     parser = new PDFParse({ data: fs.readFileSync(filePath) });
     const parsed = await parser.getText();
     const t = (parsed.text || "").trim();
@@ -105,6 +130,8 @@ async function tryPdfTextLayer(filePath) {
 }
 
 async function renderPdfPages(filePath) {
+  const pdfToPng = await getPdfToPng();
+  const sharp = await getSharp();
   const pages = await pdfToPng(filePath, {
     viewportScale: 2.0,
     pagesToProcess: Array.from({ length: MAX_VISION_PAGES }, (_, i) => i + 1),

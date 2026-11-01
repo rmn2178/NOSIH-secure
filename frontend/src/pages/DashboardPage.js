@@ -58,8 +58,13 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([getLandStats(), listLandRecords({ limit: 5 })])
       .then(([statsRes, listRes]) => {
-        setStats(statsRes.data);
-        setRecent(listRes.data.records);
+        // A response that is not the expected shape must not reach the
+        // render: `records.length` on a non-array throws inside React and
+        // unmounts the whole tree, which the user sees as a blank page.
+        const stats = statsRes.data;
+        setStats(stats && typeof stats === "object" ? stats : {});
+        const list = listRes.data;
+        setRecent(Array.isArray(list?.records) ? list.records : []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));

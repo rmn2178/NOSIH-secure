@@ -5,7 +5,7 @@ import {
   Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, ArrowRight,
   FileSearch, FileText, MapPin, Info, CircleCheck, CircleAlert, Lock, Download, X,
 } from "lucide-react";
-import { verifyLand, checkLandDocument, landQrUrl, fetchLandOriginal } from "../utils/api";
+import { verifyLand, checkLandDocument, landQrUrl, fetchLandOriginal, apiErrorMessage } from "../utils/api";
 import logo from "../assets/nosih-logo.png";
 
 const TX_EXPLORER_URL = process.env.REACT_APP_TX_EXPLORER_URL || "https://amoy.polygonscan.com/tx";
@@ -36,7 +36,7 @@ function DocumentCheck({ landId }) {
       const { data } = await checkLandDocument(landId, fd);
       setResult(data);
     } catch (err) {
-      setError(err.response?.data?.error || "Document check failed");
+      setError(apiErrorMessage(err, "Document check failed"));
     } finally {
       setChecking(false);
     }
@@ -129,10 +129,10 @@ export default function VerifyPage() {
     setLoading(true);
     try {
       const res = await verifyLand(value);
-      setData(res.data);
+      setData(res.data && typeof res.data === "object" ? res.data : null);
       setSearchParams({ landId: value }, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || "Verification failed");
+      setError(apiErrorMessage(err, "Verification failed"));
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function VerifyPage() {
     if (fromUrl) runVerify(fromUrl);
   }, []);
 
-  const timeline = data ? [...data.records].reverse() : [];
+  const timeline = Array.isArray(data?.records) ? [...data.records].reverse() : [];
 
   return (
     <div className="verify-wrapper">

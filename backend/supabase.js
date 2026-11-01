@@ -3,8 +3,11 @@
  * The backend talks to Supabase with the service-role key only (no RLS),
  * so the database is never exposed to the browser.
  *
- * Boot behavior: exits the process if the env vars are missing or the
- * database is unreachable.
+ * Boot behavior: the app stays up even when the database is unreachable.
+ * A missing variable is reported by envCheck.js and answered over HTTP; a
+ * failed connectivity check is logged and surfaced through /api/health.
+ * Exiting at import time would turn either problem into Vercel's opaque
+ * FUNCTION_INVOCATION_FAILED on every route.
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -15,35 +18,59 @@ dotenv.config();
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("FATAL: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required. Server cannot start.");
-  process.exit(1);
+/** Set when the Supabase variables are missing or unusable. */
+export const supabaseConfigError = !SUPABASE_URL
+  ? "SUPABASE_URL is not set"
+  : !SUPABASE_SERVICE_ROLE_KEY
+    ? "SUPABASE_SERVICE_ROLE_KEY is not set"
+    : null;
+
+/** Set when the database answered a boot-time query with an error. */
+export let supabaseBootError = null;
+
+/** A stand-in that refuses every call with a readable reason. */
+function unusableClient(reason) {
+  return new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        throw new Error(`Supabase client unavailable: ${reason}`);
+      },
+    }
+  );
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+export const supabase = supabaseConfigError
+  ? unusableClient(supabaseConfigError)
+  : createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
-// ── Boot-time connectivity check ─────────────────────────
-// Real GET (not HEAD) — PostgREST returns 200 on HEAD even for missing
-// tables, so only a full read proves the schema exists.
-const { error: bootError } = await supabase
-  .from("users")
-  .select("id")
-  .limit(1);
+if (supabaseConfigError) {
+  console.error("FATAL:", supabaseConfigError, "— set it in the backend environment.");
+} else {
+  // ── Boot-time connectivity check ─────────────────────────
+  // Real GET (not HEAD) — PostgREST returns 200 on HEAD even for missing
+  // tables, so only a full read proves the schema exists.
+  const { error: bootError } = await supabase
+    .from("users")
+    .select("id")
+    .limit(1);
 
-if (bootError) {
-  console.error("FATAL: Supabase connection check failed:", bootError.message);
-  console.error("Did you run backend/supabase/schema.sql in the Supabase SQL editor?");
-  process.exit(1);
-}
-console.log("✅ Supabase connected");
+  if (bootError) {
+    supabaseBootError = bootError.message;
+    console.error("FATAL: Supabase connection check failed:", bootError.message);
+    console.error("Did you run backend/supabase/schema.sql in the Supabase SQL editor?");
+  } else {
+    console.log("✅ Supabase connected");
+  }
 
-// Land tables are created by schema.sql — warn (not exit) so auth still works.
-const { error: landError } = await supabase.from("land_records").select("id").limit(1);
-if (landError) {
-  console.warn("⚠️  land_records table not reachable:", landError.message);
-  console.warn("   Run backend/supabase/schema.sql in the Supabase SQL editor.");
+  // Land tables are created by schema.sql — warn (not exit) so auth still works.
+  const { error: landError } = await supabase.from("land_records").select("id").limit(1);
+  if (landError) {
+    console.warn("⚠️  land_records table not reachable:", landError.message);
+    console.warn("   Run backend/supabase/schema.sql in the Supabase SQL editor.");
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────

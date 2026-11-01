@@ -907,6 +907,9 @@ In production, same-origin `/api` is used and neither variable is required.
 | `npm run check:ipfs` | Uploads a 1-byte file through the real `uploadToIPFS` service |
 | `npm run smoke:api` | Logs in as the seeded admin and exercises the protected read endpoints |
 | `npm run check:login` | Replays the exact browser login sequence (POST `/auth/login` then GET `/auth/me`) using `ADMIN_EMAIL`/`ADMIN_PASSWORD` from `backend/.env`; pass a base URL to point it at a deployed host |
+| `npm run check:boot` | Boots a second copy of the backend with a deliberately broken environment and proves it stays up and names the missing variables instead of crashing |
+| `npm run check:ui-failure` | Serves the production build with an API that always fails, to confirm the UI shows a message rather than a blank page |
+| `npm run vercel:env` | Uploads every variable the code reads from the local `.env` files to the Vercel project (needs `vercel login`) |
 | `npm run db:reset` | Drops every table in the `public` schema and re-applies `backend/supabase/schema.sql` — pass `--dry-run` to preview first |
 
 ```bash
@@ -1105,6 +1108,19 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
 
 3. Deploy. No frontend API URL or CORS configuration is needed for the single-domain setup.
 
+   Instead of pasting every value into the dashboard, push the local `.env` files to the
+   project in one command:
+
+   ```bash
+   vercel login
+   npm run vercel:env            # add --preview to cover preview deployments too
+   vercel --prod
+   ```
+
+   The script reads `backend/.env` and the root `.env`, uploads only the variables the
+   code actually reads, and rewrites `FRONTEND_URL` to the production domain when the
+   local value points at `localhost`. Use `--dry-run` to preview the list first.
+
 Production behaviour:
 
 - The SPA calls same-origin `/api`.
@@ -1192,6 +1208,33 @@ Store the encryption key and pepper in a password manager or secret manager, sep
 - The backend signs every write with one wallet. Rotating that wallet requires an on-chain change and an env update; app users are unaffected.
 - Keep the registrar wallet funded with a small amount of POL. Do not use the owner wallet as the day-to-day hot wallet.
 - On-chain events identify the registrar wallet, not the app user. `land_records.registered_by` is the only app-user attribution.
+
+### Blank page or `FUNCTION_INVOCATION_FAILED` on Vercel
+
+Check `https://<your-domain>/api/health` first. It answers even when the deployment is
+broken and reports what is wrong:
+
+```json
+{ "status": "degraded", "config": { "ok": false, "problems": [ { "name": "JWT_SECRET", "reason": "not set", "hint": "…" } ] } }
+```
+
+A `200` with `"status": "ok"` means the function is healthy and the problem is in the
+browser or the routing. A `503` means the environment is incomplete — push the local
+env files with `npm run vercel:env` and redeploy.
+
+`FUNCTION_INVOCATION_FAILED` on every route means the function crashed before it could
+answer. The backend used to exit at import time when a variable was missing, which
+Vercel reported as exactly that, with no hint about the cause. It no longer exits: a
+missing variable is reported over HTTP, and the native modules (`sharp`,
+`pdf-to-png-converter`) are loaded on first use so a platform-level binary problem
+cannot take the whole function down.
+
+A blank white page after signing in has a second cause worth knowing about. A platform
+error is shaped `{ "error": { "code": "…", "message": "…" } }`, not `{ "error": "…" }`.
+The old frontend put that object straight into React state, React threw error #31 and
+unmounted the whole tree, and the user saw an empty page. Every error now goes through
+`apiErrorMessage()` in `frontend/src/utils/api.js`, and a renderer error boundary wraps
+the app, so a failure shows a message instead of a blank screen.
 
 ### Sign-in troubleshooting
 

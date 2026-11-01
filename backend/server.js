@@ -12,18 +12,19 @@ import { MAX_UPLOAD_MB } from "./config.js";
 
 dotenv.config();
 
-import "./supabase.js"; // validates Supabase env + connectivity at boot
-import { assertLandSecrets } from "./services/landIdentity.js";
+import { supabaseBootError } from "./supabase.js"; // connects + validates at boot
+import { auditEnv, describeProblems } from "./envCheck.js";
 
 import authRoutes   from "./routes/auth.js";
 import landRoutes   from "./routes/land.js";
 import verifyRoutes from "./routes/verify.js";
 
-try {
-  assertLandSecrets();
-} catch (err) {
-  console.error("FATAL:", err.message);
-  process.exit(1);
+const envAudit = auditEnv();
+
+if (!envAudit.ok) {
+  console.error("FATAL: the backend environment is incomplete:");
+  console.error(describeProblems(envAudit.problems));
+  console.error("The API will answer with 503 and these details until they are fixed.");
 }
 
 const app = express();
@@ -50,15 +51,42 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── Health check ─────────────────────────────────────────
+// Registered before every other route so it always answers, even when the
+// deployment is misconfigured. It is the first thing to check when the
+// frontend shows a blank page.
+app.get("/api/health", (_req, res) => {
+  const databaseOk = !supabaseBootError;
+  const ok = envAudit.ok && databaseOk;
+
+  res.status(ok ? 200 : 503).json({
+    status: ok ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+    config: envAudit.ok
+      ? { ok: true }
+      : { ok: false, problems: envAudit.problems },
+    database: databaseOk
+      ? { ok: true }
+      : { ok: false, error: supabaseBootError },
+  });
+});
+
+// ── Misconfiguration gate ───────────────────────────────
+// A missing variable is reported instead of crashing the function: on Vercel
+// a crash at import time answers every route with FUNCTION_INVOCATION_FAILED
+// and no clue about the cause.
+app.use((req, res, next) => {
+  if (envAudit.ok) return next();
+  res.status(503).json({
+    error: "Server misconfigured: required environment variables are missing",
+    problems: envAudit.problems,
+  });
+});
+
 // ── Routes ───────────────────────────────────────────────
 app.use("/api/auth",   authRoutes);
 app.use("/api/land",   landRoutes);
 app.use("/api/verify", verifyRoutes);
-
-// Health check
-app.get("/api/health", (_, res) =>
-  res.json({ status: "ok", timestamp: new Date().toISOString() })
-);
 
 // 404 handler
 app.use((_, res) => res.status(404).json({ error: "Route not found" }));

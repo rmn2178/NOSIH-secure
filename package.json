@@ -13,6 +13,9 @@
     "check:ipfs": "node scripts/test-ipfs-service.mjs",
     "check:vercel": "node scripts/check-vercel-env.js",
     "check:login": "node scripts/check-login.mjs",
+    "check:boot": "node scripts/check-boot-report.mjs",
+    "check:ui-failure": "node scripts/check-ui-failure.mjs",
+    "vercel:env": "node scripts/vercel-env.mjs",
     "smoke:api": "node scripts/smoke-api.js",
     "db:reset": "node scripts/reset-supabase.js"
   },

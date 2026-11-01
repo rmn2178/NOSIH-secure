@@ -4,7 +4,15 @@
  */
 
 import QRCode from "qrcode";
-import sharp from "sharp";
+
+// sharp is a native module. Loading it on first use keeps a platform-level
+// binary problem from killing the whole function at import time — only QR
+// generation would be affected.
+let sharpPromise = null;
+function getSharp() {
+  if (!sharpPromise) sharpPromise = import("sharp").then((m) => m.default ?? m);
+  return sharpPromise;
+}
 
 const QR_SIZE = 480;
 const LABEL_HEIGHT = 84;
@@ -61,6 +69,7 @@ export async function generateLandQr(landId, req) {
     </svg>`
   );
 
+  const sharp = await getSharp();
   const png = await sharp({
     create: { width: QR_SIZE, height: QR_SIZE + LABEL_HEIGHT, channels: 3, background: "#FFFFFF" },
   })

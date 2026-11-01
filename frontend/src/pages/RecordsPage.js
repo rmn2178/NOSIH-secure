@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ExternalLink, FileText, QrCode, Ban, Search } from "lucide-react";
-import { listLandRecords, revokeLandRecord, fetchDeedDocument, downloadLandQr } from "../utils/api";
+import { listLandRecords, revokeLandRecord, fetchDeedDocument, downloadLandQr, apiErrorMessage } from "../utils/api";
 import Layout from "../components/Layout";
 
 const ICON = { size: 14, strokeWidth: 1.75, "aria-hidden": true };
@@ -21,10 +21,10 @@ export default function RecordsPage() {
     setError("");
     try {
       const { data } = await listLandRecords({ page, search, limit: PAGE_SIZE, latestOnly });
-      setRecords(data.records);
-      setTotal(data.total);
+      setRecords(Array.isArray(data?.records) ? data.records : []);
+      setTotal(Number(data?.total) || 0);
     } catch (e) {
-      setError(e.response?.data?.error || "Could not load records");
+      setError(apiErrorMessage(e, "Could not load records"));
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export default function RecordsPage() {
       await revokeLandRecord(rec.recordId, reason.trim());
       fetchRecords();
     } catch (err) {
-      alert(err.response?.data?.error || "Revocation failed");
+      alert(apiErrorMessage(err, "Revocation failed"));
     } finally {
       setBusy("");
     }
@@ -66,7 +66,7 @@ export default function RecordsPage() {
     } catch (err) {
       win?.close();
       let msg = "Could not open the deed";
-      try { msg = JSON.parse(await err.response.data.text()).error || msg; } catch { /* blob body */ }
+      try { msg = apiErrorMessage({ response: { data: JSON.parse(await err.response.data.text()) } }, msg); } catch { /* blob body */ }
       alert(msg);
     } finally {
       setBusy("");

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../utils/api";
+import { login, apiErrorMessage } from "../utils/api";
 import logo from "../assets/nosih-logo.png";
 import "./styles.css";
 
@@ -21,7 +21,7 @@ export default function LoginPage() {
       sessionStorage.setItem("user", JSON.stringify(res.data.user));
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.error || "Login failed");
+      setError(apiErrorMessage(err, "Login failed"));
     } finally {
       setLoading(false);
     }
