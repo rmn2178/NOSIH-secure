@@ -902,7 +902,7 @@ In production, same-origin `/api` is used and neither variable is required.
 | `npm run check:env` | Boot-critical secrets are present and correctly shaped; the registrar wallet is authorised on the deployed contract |
 | `npm run check:runtime` | Amoy gas balance of the registrar wallet; seeded users |
 | `npm run check:services` | Gemini and Pinata credentials are accepted by the live APIs (includes a control request with a deliberately invalid key) |
-| `npm run check:jwt` | Decodes a Pinata scoped JWT and verifies its signature offline |
+| `npm run check:jwt` | Decodes a Pinata scoped JWT and validates it against Pinata's live API (also reads a commented-out `PINATA_JWT`, so a candidate token can be tested before enabling it) |
 | `npm run check:ipfs` | Uploads a 1-byte file through the real `uploadToIPFS` service |
 | `npm run smoke:api` | Logs in as the seeded admin and exercises the protected read endpoints |
 | `npm run db:reset` | Drops every table in the `public` schema and re-applies `backend/supabase/schema.sql` — pass `--dry-run` to preview first |
@@ -1248,6 +1248,9 @@ Failed chain writes can leave an orphaned encrypted pin. It contains only cipher
 | `not an authorized registrar` revert | Backend wallet not on the contract allowlist | Run `scripts/addIssuer.js` for the `ISSUER_PRIVATE_KEY` wallet |
 | `409 This exact deed PDF is already registered` | SHA-256 duplicate | Use the existing record or a genuinely different deed |
 | Registration fails at `Pinata authentication/permission failed` | Bad/expired Pinata JWT or missing scopes | Regenerate a JWT with upload/pin scopes |
+| `Cannot parse UUID parameter: "<key>"` | Pinata v3 uploads endpoint requires a UUID-format key; a scoped key must use the legacy endpoint | The backend skips v3 for scoped keys automatically — if you see this in a log, the upload fell back to legacy |
+| `NO_SCOPES_FOUND` from Pinata | The API key authenticates but has no upload scope attached | In the Pinata console, give the key the `pinFileToIPFS` scope |
+| `API_KEY_REVOKED` from Pinata | The key was revoked when a replacement was created | Use the current key and secret from the console |
 | `Pinata key has no upload scopes` | Key lacks v3 upload permission | Create a key with the required scopes or use a legacy key pair |
 | Extraction returns `success: false` | Scanned/blank PDF or Gemini failure | Fill the form manually; check `GEMINI_API_KEY` |
 | Extraction is slow | Scanned PDF falls back to vision | Expect roughly 30 seconds; the UI allows up to 90 seconds |

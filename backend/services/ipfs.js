@@ -58,6 +58,21 @@ function pinataAuthHeaders() {
   );
 }
 
+/**
+ * Whether the v3 uploads endpoint can accept the configured credential.
+ *
+ * The v3 gateway resolves the caller from the key and parses it as a UUID
+ * ("Cannot parse UUID parameter: ..."), so a scoped key — which is a short
+ * hex string, not a UUID — is rejected before it ever reaches the upload.
+ * Such a key can still upload through the legacy endpoint, so we skip the
+ * doomed v3 attempt instead of paying for it on every deed.
+ */
+function canUseV3Uploads() {
+  if (process.env.PINATA_JWT) return true;
+  const key = String(process.env.PINATA_API_KEY || "");
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+}
+
 function normalizePinataError(err) {
   const status = err.response?.status || 502;
   const reason = err.response?.data?.error?.reason;
@@ -134,9 +149,11 @@ async function uploadViaPinataLegacy(fileBuffer, filename, contentType) {
  */
 export async function uploadToIPFS(fileBuffer, filename, contentType = "application/pdf") {
   try {
-    const cid = await uploadViaPinataV3(fileBuffer, filename, contentType);
-    if (!cid) throw new Error("Pinata v3 response missing CID");
-    return cid;
+    if (canUseV3Uploads()) {
+      const cid = await uploadViaPinataV3(fileBuffer, filename, contentType);
+      if (!cid) throw new Error("Pinata v3 response missing CID");
+      return cid;
+    }
   } catch (primaryErr) {
     try {
       const cid = await uploadViaPinataLegacy(fileBuffer, filename, contentType);
@@ -145,6 +162,15 @@ export async function uploadToIPFS(fileBuffer, filename, contentType = "applicat
     } catch {
       throw normalizePinataError(primaryErr);
     }
+  }
+
+  // Scoped key: v3 cannot accept it, so go straight to the legacy endpoint.
+  try {
+    const cid = await uploadViaPinataLegacy(fileBuffer, filename, contentType);
+    if (!cid) throw new Error("Pinata legacy response missing CID");
+    return cid;
+  } catch (err) {
+    throw normalizePinataError(err);
   }
 }
 
