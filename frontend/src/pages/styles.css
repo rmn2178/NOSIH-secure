@@ -590,7 +590,9 @@ textarea:focus {
 /* ── Stats Grid ───────────────────────────────────────── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* Four counters, four even columns — auto-fit left one card alone on a
+     second row once the network tile was removed. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -1200,6 +1202,12 @@ textarea:focus {
 
   .dashboard-headline h2 {
     font-size: 22px;
+  }
+}
+
+@media (max-width: 460px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 }
 

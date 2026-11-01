@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listLandRecords, getLandStats } from "../utils/api";
 import Layout from "../components/Layout";
-import PolygonMark from "../components/PolygonMark";
 import {
   Landmark,
   ScrollText,
@@ -90,7 +89,6 @@ export default function DashboardPage() {
         <StatCard icon={<ScrollText {...STAT_ICON} />} label="Records" value={stats.records} />
         <StatCard icon={<ArrowLeftRight {...STAT_ICON} />} label="Transfers" value={stats.transfers} />
         <StatCard icon={<ShieldAlert {...STAT_ICON} />} label="Revoked" value={stats.revoked} />
-        <StatCard icon={<PolygonMark size={28} />} label="Network" value="Polygon" />
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>
