@@ -1,6 +1,7 @@
 -- NOSIH — Supabase schema (land deed registry)
 -- Run this once in the Supabase SQL editor. Safe to re-run.
--- The legacy passport `certificates` table is left untouched and unused.
+-- The legacy passport `certificates` table was dropped when the database was
+-- reset to a fresh NOSIH install; nothing references it.
 
 -- ── Users (registrars / admins) ───────────────────────────
 create table if not exists users (

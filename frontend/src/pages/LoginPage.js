@@ -33,7 +33,7 @@ export default function LoginPage() {
         <div className="auth-logo">
           <img src={logo} alt="NOSIH logo" className="logo-img" />
           <h1>NOSIH</h1>
-          <p>Decentralized Certificate Authentication</p>
+          <p>Decentralized Deed Authentication</p>
         </div>
 
         <form onSubmit={handleSubmit}>
