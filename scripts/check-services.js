@@ -3,6 +3,14 @@
  * Reads backend/.env and exercises each API with a real, read-only call.
  *
  *   node scripts/check-services.js
+ *
+ * Pinata probes POST an empty body, so nothing is pinned and no file is
+ * created. The status/reason still tells you whether the credential can
+ * actually upload:
+ *   401 / INVALID_CREDENTIALS / INVALID_API_KEYS / API_KEY_REVOKED
+ *                                       -> credential is wrong
+ *   403 NO_SCOPES_FOUND                 -> key lacks the upload scope
+ *   415 tus validation / 400 bad format -> auth passed, protocol differs
  */
 const fs = require("fs");
 const path = require("path");
@@ -48,41 +56,44 @@ async function checkGemini() {
       console.log(`[PASS] Gemini  model=${model}  reply="${String(text).trim().slice(0, 40)}"`);
     } else {
       const msg = body?.error?.message || JSON.stringify(body).slice(0, 160);
-      console.log(`[FAIL] Gemini  HTTP ${res.status} — ${msg}`);
+      console.log(`[FAIL] Gemini  HTTP ${res.status} - ${msg}`);
     }
   } catch (e) {
     console.log(`[FAIL] Gemini  ${e.message}`);
   }
 }
 
-/**
- * Non-mutating Pinata auth probe.
- *
- * POSTs an empty body to the upload endpoints. Nothing is uploaded, so no pin
- * is created:
- *   401/403 UNAUTHORIZED  → credential rejected
- *   400 validation error  → auth PASSED, the request merely lacked a file
- */
 async function probePinata(label, url, headers) {
   try {
     const res = await fetch(url, { method: "POST", headers });
     const body = await res.text();
-    const authRejected = res.status === 401 || res.status === 403;
     const reason = (() => {
       try {
-        return JSON.parse(body)?.error?.reason || "";
+        const parsed = JSON.parse(body)?.error;
+        return parsed?.reason || parsed?.message || "";
       } catch {
         return "";
       }
     })();
-    if (authRejected) {
-      console.log(`[FAIL] ${label}  HTTP ${res.status} ${reason} — ${body.slice(0, 130)}`);
+
+    const credentialRejected =
+      res.status === 401 ||
+      reason === "INVALID_CREDENTIALS" ||
+      reason === "INVALID_API_KEYS" ||
+      reason === "API_KEY_REVOKED";
+
+    if (credentialRejected) {
+      console.log(`  [FAIL] ${label}  HTTP ${res.status} ${reason} - credential rejected`);
       return false;
     }
-    console.log(`[PASS] ${label}  HTTP ${res.status} auth accepted (${reason || "validation"}: ${body.slice(0, 90).replace(/\s+/g, " ")})`);
+    if (reason === "NO_SCOPES_FOUND") {
+      console.log(`  [FAIL] ${label}  HTTP ${res.status} ${reason} - authenticates but has NO upload scope`);
+      return false;
+    }
+    console.log(`  [PASS] ${label}  HTTP ${res.status} auth accepted${reason ? ` (${reason})` : ""}`);
     return true;
   } catch (e) {
-    console.log(`[FAIL] ${label}  ${e.message}`);
+    console.log(`  [FAIL] ${label}  ${e.message}`);
     return false;
   }
 }
@@ -101,20 +112,25 @@ async function checkPinata() {
     return;
   }
 
-  // v3 uploads API — the primary path used by backend/services/ipfs.js
-  if (bearer) await probePinata("JWT  → uploads v3", "https://uploads.pinata.cloud/v3/files", bearer);
-  if (keypair) await probePinata("KEY  → uploads v3", "https://uploads.pinata.cloud/v3/files", keypair);
+  const results = [];
 
-  // Legacy pinning API — the fallback path in uploadViaPinataLegacy
-  if (bearer) await probePinata("JWT  → pinFileToIPFS", "https://api.pinata.cloud/pinning/pinFileToIPFS", bearer);
-  if (keypair) await probePinata("KEY  → pinFileToIPFS", "https://api.pinata.cloud/pinning/pinFileToIPFS", keypair);
+  // v3 uploads API - the primary path used by backend/services/ipfs.js
+  if (bearer) results.push(await probePinata("JWT  -> uploads v3", "https://uploads.pinata.cloud/v3/files", bearer));
+  if (keypair) results.push(await probePinata("KEY  -> uploads v3", "https://uploads.pinata.cloud/v3/files", keypair));
 
-  // Read-only listing — proves the key pair can read the account
-  if (keypair) await probePinata("KEY  → pinList", "https://api.pinata.cloud/pinning/pinList?pageSize=1", keypair);
+  // Legacy pinning API - the fallback path in uploadViaPinataLegacy
+  if (bearer)
+    results.push(await probePinata("JWT  -> pinFileToIPFS", "https://api.pinata.cloud/pinning/pinFileToIPFS", bearer));
+  if (keypair)
+    results.push(await probePinata("KEY  -> pinFileToIPFS", "https://api.pinata.cloud/pinning/pinFileToIPFS", keypair));
+
+  if (!results.some(Boolean)) {
+    console.log("  [FAIL] no credential can upload - deed uploads will fail");
+  }
 }
 
 (async () => {
-  console.log("── Google Gemini ──");
+  console.log("-- Google Gemini --");
   await checkGemini();
   // Control: a bogus key must be rejected, otherwise the check above proves nothing.
   try {
@@ -128,12 +144,12 @@ async function checkPinata() {
     );
     console.log(
       res.ok
-        ? "[WARN] Gemini control  bogus key ACCEPTED — the endpoint is not validating keys"
+        ? "[WARN] Gemini control  bogus key ACCEPTED - the endpoint is not validating keys"
         : `[PASS] Gemini control  bogus key rejected (HTTP ${res.status})`
     );
   } catch (e) {
     console.log(`[WARN] Gemini control  ${e.message}`);
   }
-  console.log("\n── Pinata ──");
+  console.log("\n-- Pinata --");
   await checkPinata();
 })();
