@@ -893,6 +893,24 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 In production, same-origin `/api` is used and neither variable is required.
 
+### Preflight checks
+
+`scripts/` contains checks that verify an environment before you rely on it. Every check below is read-only with respect to the blockchain — none of them writes a land record or sends a transaction.
+
+| Command | Checks |
+|---|---|
+| `npm run check:env` | Boot-critical secrets are present and correctly shaped; the registrar wallet is authorised on the deployed contract |
+| `npm run check:runtime` | Amoy gas balance of the registrar wallet; seeded users |
+| `npm run check:services` | Gemini and Pinata credentials are accepted by the live APIs (includes a control request with a deliberately invalid key) |
+| `npm run check:jwt` | Decodes a Pinata scoped JWT and verifies its signature offline |
+| `npm run check:ipfs` | Uploads a 1-byte file through the real `uploadToIPFS` service |
+| `npm run smoke:api` | Logs in as the seeded admin and exercises the protected read endpoints |
+| `npm run db:reset` | Drops every table in the `public` schema and re-applies `backend/supabase/schema.sql` — pass `--dry-run` to preview first |
+
+```bash
+npm run check:env && npm run check:services
+```
+
 ---
 
 ## Setup from Scratch
@@ -911,6 +929,8 @@ npm install --prefix frontend
 2. Open the SQL Editor.
 3. Paste and run [`backend/supabase/schema.sql`](backend/supabase/schema.sql). It is safe to re-run.
 4. Copy the project URL and service-role key into `backend/.env`.
+
+To start from an empty database instead of applying the schema by hand, set `DATABASE_URL` in `backend/.env` and run `npm run db:reset --dry-run` to preview, then `npm run db:reset`. It drops every table in the `public` schema and re-applies `schema.sql`.
 
 ### 3. Configure the backend
 

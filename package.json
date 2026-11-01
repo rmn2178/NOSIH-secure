@@ -6,7 +6,12 @@
     "deploy:amoy": "hardhat run scripts/deploy.js --network amoy",
     "issuer:add": "hardhat run scripts/addIssuer.js --network amoy",
     "check:env": "node scripts/check-env.js",
-    "check:runtime": "node scripts/check-runtime.js"
+    "check:runtime": "node scripts/check-runtime.js",
+    "check:services": "node scripts/check-services.js",
+    "check:jwt": "node scripts/diagnose-pinata-jwt.js",
+    "check:ipfs": "node scripts/test-ipfs-service.mjs",
+    "smoke:api": "node scripts/smoke-api.js",
+    "db:reset": "node scripts/reset-supabase.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
