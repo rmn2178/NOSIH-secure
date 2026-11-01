@@ -1079,7 +1079,8 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
    ISSUER_PRIVATE_KEY
    SUPABASE_URL
    SUPABASE_SERVICE_ROLE_KEY
-   PINATA_JWT
+   PINATA_API_KEY
+   PINATA_API_SECRET
    JWT_SECRET
    JWT_EXPIRES_IN
    DOCUMENT_ENC_KEY
@@ -1089,7 +1090,16 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
    VIEW_DOCUMENT_POLICY
    ```
 
-   Optional: `PINATA_API_KEY`, `PINATA_API_SECRET`, `IPFS_GATEWAY_BASE_URL`, `IPFS_FETCH_TIMEOUT_MS`, `MAX_UPLOAD_MB`, `FRONTEND_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+   Optional: `PINATA_JWT`, `AMOY_RPC_URL`, `IPFS_GATEWAY_BASE_URL`, `IPFS_FETCH_TIMEOUT_MS`, `MAX_UPLOAD_MB`, `FRONTEND_URL`, `REACT_APP_TX_EXPLORER_URL`.
+
+   `PINATA_API_KEY` and `PINATA_API_SECRET` are the credentials that matter: the scoped key
+   uploads through the legacy Pinata endpoint. Set `PINATA_JWT` only if it validates —
+   the backend prefers the JWT whenever one is present, so an unusable token turns every
+   deed upload into a 401. Check it with `npm run check:jwt` before deploying it.
+
+   `REACT_APP_*` values are inlined at build time, so they must be set on the **web**
+   service, not the API service. Neither is required here: the SPA calls same-origin
+   `/api` and the transaction explorer defaults to the Amoy explorer.
 
 3. Deploy. No frontend API URL or CORS configuration is needed for the single-domain setup.
 

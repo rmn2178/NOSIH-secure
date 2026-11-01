@@ -10,6 +10,7 @@
     "check:services": "node scripts/check-services.js",
     "check:jwt": "node scripts/diagnose-pinata-jwt.js",
     "check:ipfs": "node scripts/test-ipfs-service.mjs",
+    "check:vercel": "node scripts/check-vercel-env.js",
     "smoke:api": "node scripts/smoke-api.js",
     "db:reset": "node scripts/reset-supabase.js"
   },
