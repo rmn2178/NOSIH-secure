@@ -12,11 +12,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally — redirect to login
+// Handle 401 globally — redirect to login.
+// The login call itself is excluded: a wrong password must surface the
+// server's "Invalid credentials" message inline, not bounce the page back
+// to /login (which wipes the error before it can be read).
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const isLoginAttempt = (err.config?.url || "").includes("/auth/login");
+    if (err.response?.status === 401 && !isLoginAttempt) {
       sessionStorage.removeItem("token");
       window.location.href = "/login";
     }

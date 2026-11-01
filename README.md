@@ -906,6 +906,7 @@ In production, same-origin `/api` is used and neither variable is required.
 | `npm run check:jwt` | Decodes a Pinata scoped JWT and validates it against Pinata's live API (also reads a commented-out `PINATA_JWT`, so a candidate token can be tested before enabling it) |
 | `npm run check:ipfs` | Uploads a 1-byte file through the real `uploadToIPFS` service |
 | `npm run smoke:api` | Logs in as the seeded admin and exercises the protected read endpoints |
+| `npm run check:login` | Replays the exact browser login sequence (POST `/auth/login` then GET `/auth/me`) using `ADMIN_EMAIL`/`ADMIN_PASSWORD` from `backend/.env`; pass a base URL to point it at a deployed host |
 | `npm run db:reset` | Drops every table in the `public` schema and re-applies `backend/supabase/schema.sql` — pass `--dry-run` to preview first |
 
 ```bash
@@ -1191,6 +1192,19 @@ Store the encryption key and pepper in a password manager or secret manager, sep
 - The backend signs every write with one wallet. Rotating that wallet requires an on-chain change and an env update; app users are unaffected.
 - Keep the registrar wallet funded with a small amount of POL. Do not use the owner wallet as the day-to-day hot wallet.
 - On-chain events identify the registrar wallet, not the app user. `land_records.registered_by` is the only app-user attribution.
+
+### Sign-in troubleshooting
+
+If "Sign In" appears to do nothing, the password in `backend/.env` is not the one stored for the user. `ADMIN_PASSWORD` is only a seed input — the live password lives as a bcrypt hash in the `users` table, so editing the env file alone changes nothing until you re-seed:
+
+```bash
+npm run seed:admin --prefix backend
+npm run check:login
+```
+
+`check:login` replays the browser sequence (`POST /auth/login` then `GET /auth/me`) and prints the status of each step, so it distinguishes "the password is wrong" from "the session token is rejected".
+
+A wrong password now renders `Invalid credentials` inline on the form. Earlier builds bounced the page back to `/login` on any 401, which cleared the message before it could be read and made a rejected sign-in look like a button that does nothing.
 
 ### Partial-failure reconciliation
 
