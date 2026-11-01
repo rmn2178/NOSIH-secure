@@ -901,6 +901,7 @@ In production, same-origin `/api` is used and neither variable is required.
 |---|---|
 | `npm run check:env` | Boot-critical secrets are present and correctly shaped; the registrar wallet is authorised on the deployed contract |
 | `npm run check:runtime` | Amoy gas balance of the registrar wallet; seeded users |
+| `npm run check:gas` | Balances, current gas price, and how many registrations each wallet covers (the cost comes from `eth_estimateGas`, which simulates rather than broadcasting) |
 | `npm run check:services` | Gemini and Pinata credentials are accepted by the live APIs (includes a control request with a deliberately invalid key) |
 | `npm run check:jwt` | Decodes a Pinata scoped JWT and validates it against Pinata's live API (also reads a commented-out `PINATA_JWT`, so a candidate token can be tested before enabling it) |
 | `npm run check:ipfs` | Uploads a 1-byte file through the real `uploadToIPFS` service |

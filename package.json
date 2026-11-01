@@ -7,6 +7,7 @@
     "issuer:add": "hardhat run scripts/addIssuer.js --network amoy",
     "check:env": "node scripts/check-env.js",
     "check:runtime": "node scripts/check-runtime.js",
+    "check:gas": "node scripts/check-gas.mjs",
     "check:services": "node scripts/check-services.js",
     "check:jwt": "node scripts/diagnose-pinata-jwt.js",
     "check:ipfs": "node scripts/test-ipfs-service.mjs",
