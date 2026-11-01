@@ -1,6 +1,6 @@
 /**
  * Live credential check for the third-party services the backend depends on.
- * Reads backend/.env and exercises each API with a real, read-only call.
+ * Reads the root .env and exercises each API with a real, read-only call.
  *
  *   node scripts/check-services.js
  *
@@ -32,7 +32,7 @@ function readEnvFile(file) {
   return values;
 }
 
-const env = readEnvFile(path.join(ROOT, "backend", ".env"));
+const env = readEnvFile(path.join(ROOT, ".env"));
 
 async function checkGemini() {
   const key = env.GEMINI_API_KEY;

@@ -3,7 +3,7 @@
  *
  *   node scripts/diagnose-pinata-jwt.js
  *
- * Reads the JWT from backend/.env. It picks up the token even when the line
+ * Reads the JWT from the root .env. It picks up the token even when the line
  * is commented out (which is how a token that fails validation is parked),
  * so you can test a new token before enabling it.
  *
@@ -37,11 +37,11 @@ function readEnvFile(file) {
   return { values, commented };
 }
 
-const { values: env, commented } = readEnvFile(path.join(ROOT, "backend", ".env"));
+const { values: env, commented } = readEnvFile(path.join(ROOT, ".env"));
 const jwt = env.PINATA_JWT || commented.PINATA_JWT;
 
 if (!jwt) {
-  console.log("PINATA_JWT not set (neither active nor commented) in backend/.env");
+  console.log("PINATA_JWT not set (neither active nor commented) in .env");
   process.exit(0);
 }
 
@@ -58,7 +58,7 @@ const payload = JSON.parse(decode(payloadB64));
 console.log("header :", JSON.stringify(header));
 console.log("payload:", JSON.stringify(payload, null, 2).replace(/\n/g, "\n         "));
 console.log("");
-console.log(`source        : ${env.PINATA_JWT ? "ACTIVE in backend/.env" : "commented out in backend/.env"}`);
+console.log(`source        : ${env.PINATA_JWT ? "ACTIVE in .env" : "commented out in .env"}`);
 console.log(`scopedKeyKey  : ${payload.scopedKeyKey}`);
 console.log(`env API key   : ${env.PINATA_API_KEY}`);
 console.log(

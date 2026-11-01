@@ -1,16 +1,11 @@
+import "./env.js"; // loads the repository-root .env — must come first
+
 /**
  * Shared runtime config.
  *
  * Vercel Functions cap request bodies at 4.5 MB, so uploads default to 4 MB
  * there and 15 MB locally. Set MAX_UPLOAD_MB to override either.
  */
-import dotenv from "dotenv";
-
-// This module is evaluated before the entry point's own dotenv.config()
-// call (ESM hoists imports), so it has to load the .env file itself or a
-// MAX_UPLOAD_MB set in backend/.env would be ignored.
-dotenv.config();
-
 const fallbackMb = process.env.VERCEL ? 4 : 15;
 
 export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || fallbackMb;

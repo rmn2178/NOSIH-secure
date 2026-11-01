@@ -60,11 +60,8 @@ function readEnvFile(file) {
   return out;
 }
 
-const backendEnv = readEnvFile(path.join("backend", ".env"));
-const rootEnv = readEnvFile(".env");
-
-// backend/.env wins, then the root file.
-const merged = { ...rootEnv, ...backendEnv };
+// One env file for the whole project.
+const merged = readEnvFile(".env");
 
 // The variables the Vercel function needs. Everything else (PORT, NODE_ENV,
 // DATABASE_URL, VERIFY_BASE_URL, BACKEND_PUBLIC_URL) stays local — Vercel

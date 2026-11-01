@@ -14,15 +14,15 @@ typechain-types/
 coverage.json
 
 # ── Secrets (keep the checked-in examples) ───────────────────
+# The project has ONE env file: .env in the repository root.
+# The pattern matches at any depth, so backend/.env is covered too.
 .env
 .env.local
 .env.*.local
 .env.production
-backend/.env
 frontend/.env.local
+!.env.example
 !env.example
-!backend/env.example
-!frontend/env.example
 
 # ── Runtime files ────────────────────────────────────────────
 uploads/

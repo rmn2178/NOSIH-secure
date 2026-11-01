@@ -1,3 +1,4 @@
+import "../env.js"; // loads the repository-root .env — must come first
 import axios from "axios";
 import FormData from "form-data";
 
@@ -53,7 +54,7 @@ function pinataAuthHeaders() {
   }
 
   throw new IPFSUploadError(
-    "Missing Pinata credentials. Set PINATA_JWT or PINATA_API_KEY + PINATA_API_SECRET in backend/.env",
+    "Missing Pinata credentials. Set PINATA_JWT or PINATA_API_KEY + PINATA_API_SECRET in the root .env",
     { status: 500, code: "PINATA_CONFIG_MISSING" }
   );
 }

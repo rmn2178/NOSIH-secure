@@ -15,6 +15,7 @@
  * No chain reads, no extra gas.
  */
 
+import "../env.js"; // loads the repository-root .env — must come first
 import { Router } from "express";
 import multer from "multer";
 import { MAX_UPLOAD_BYTES } from "../config.js";

@@ -1,10 +1,9 @@
+import "../env.js"; // loads the repository-root .env — must come first
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { supabase, userFromRow, isUniqueViolation } from "../supabase.js";
 import { protect, adminOnly } from "../middleware/auth.js";
-import dotenv from "dotenv";
-dotenv.config();
 
 const router = Router();
 const BCRYPT_ROUNDS = 12;

@@ -1,7 +1,5 @@
+import "../env.js"; // loads the repository-root .env — must come first
 import { ethers } from "ethers";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 // LandRegistry ABI — only what the backend calls
 const RECORD_TUPLE =

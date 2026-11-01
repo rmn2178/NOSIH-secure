@@ -22,7 +22,7 @@ const mode = process.argv.includes("--keypair")
   ? "API key pair"
   : process.argv.includes("--jwt")
     ? "JWT"
-    : "as configured in backend/.env";
+    : "as configured in the root .env";
 
 if (process.argv.includes("--keypair")) delete process.env.PINATA_JWT;
 

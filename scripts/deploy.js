@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 const { ethers } = hre;
-require("dotenv").config();
+require("dotenv").config({ path: require("path").resolve(__dirname, "..", ".env") });
 
 function normalizePrivateKey(key) {
   if (!key) return null;

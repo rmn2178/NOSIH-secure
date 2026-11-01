@@ -3,7 +3,7 @@
  *
  *   node scripts/smoke-api.js [baseUrl]
  *
- * Logs in with ADMIN_EMAIL/ADMIN_PASSWORD from backend/.env, then exercises
+ * Logs in with ADMIN_EMAIL/ADMIN_PASSWORD from the root .env, then exercises
  * the protected read endpoints. Read-only: it never creates a land record and
  * never touches the blockchain.
  */
@@ -28,7 +28,7 @@ function readEnvFile(file) {
   return values;
 }
 
-const env = readEnvFile(path.join(ROOT, "backend", ".env"));
+const env = readEnvFile(path.join(ROOT, ".env"));
 
 const results = [];
 const record = (label, pass, detail) => {

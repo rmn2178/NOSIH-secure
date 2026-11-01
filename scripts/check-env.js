@@ -2,8 +2,7 @@
  * Environment preflight checker.
  *
  * Verifies that every env var the app needs is present, correctly shaped and
- * actually usable — root .env (deploy), backend/.env (runtime) and the
- * on-chain registrar wiring.
+ * actually usable — the single root .env and the on-chain registrar wiring.
  *
  *   node scripts/check-env.js
  *
@@ -32,8 +31,9 @@ function readEnvFile(file) {
   return values;
 }
 
+// One env file for the whole project. The backend reads the root .env too
+// (backend/env.js resolves it from the module's own location).
 const rootEnv = readEnvFile(path.join(ROOT, ".env"));
-const backendEnv = readEnvFile(path.join(ROOT, "backend", ".env"));
 const frontendEnv = {
   ...readEnvFile(path.join(ROOT, "frontend", ".env.local")),
   ...readEnvFile(path.join(ROOT, "frontend", ".env")),
@@ -58,34 +58,34 @@ const checkHexKey = (name, env) => {
   ok(name, "64 hex chars");
 };
 
-checkHexKey("DOCUMENT_ENC_KEY", backendEnv);
-checkHexKey("HASH_PEPPER", backendEnv);
+checkHexKey("DOCUMENT_ENC_KEY", rootEnv);
+checkHexKey("HASH_PEPPER", rootEnv);
 
-if (!backendEnv.SUPABASE_URL) fail("SUPABASE_URL", "missing — server exits at boot");
-else ok("SUPABASE_URL", backendEnv.SUPABASE_URL);
+if (!rootEnv.SUPABASE_URL) fail("SUPABASE_URL", "missing — server exits at boot");
+else ok("SUPABASE_URL", rootEnv.SUPABASE_URL);
 
-if (!backendEnv.SUPABASE_SERVICE_ROLE_KEY)
+if (!rootEnv.SUPABASE_SERVICE_ROLE_KEY)
   fail("SUPABASE_SERVICE_ROLE_KEY", "missing — server exits at boot");
-else ok("SUPABASE_SERVICE_ROLE_KEY", "set (length " + backendEnv.SUPABASE_SERVICE_ROLE_KEY.length + ")");
+else ok("SUPABASE_SERVICE_ROLE_KEY", "set (length " + rootEnv.SUPABASE_SERVICE_ROLE_KEY.length + ")");
 
-if (!backendEnv.JWT_SECRET) fail("JWT_SECRET", "missing — server exits at boot");
-else ok("JWT_SECRET", `set (length ${backendEnv.JWT_SECRET.length})`);
+if (!rootEnv.JWT_SECRET) fail("JWT_SECRET", "missing — server exits at boot");
+else ok("JWT_SECRET", `set (length ${rootEnv.JWT_SECRET.length})`);
 
 // ── 2. Feature-gated variables ────────────────────────────
 const optional = [
-  ["CONTRACT_ADDRESS", backendEnv.CONTRACT_ADDRESS, "chain reads/writes"],
-  ["ISSUER_PRIVATE_KEY", backendEnv.ISSUER_PRIVATE_KEY, "signing records"],
-  ["PINATA_JWT", backendEnv.PINATA_JWT, "IPFS uploads"],
-  ["GEMINI_API_KEY", backendEnv.GEMINI_API_KEY, "PDF field extraction"],
-  ["ALCHEMY_AMOY_URL", backendEnv.ALCHEMY_AMOY_URL || rootEnv.ALCHEMY_AMOY_URL, "faster RPC"],
-  ["ADMIN_EMAIL", backendEnv.ADMIN_EMAIL, "seed:admin"],
-  ["ADMIN_PASSWORD", backendEnv.ADMIN_PASSWORD, "seed:admin"],
+  ["CONTRACT_ADDRESS", rootEnv.CONTRACT_ADDRESS, "chain reads/writes"],
+  ["ISSUER_PRIVATE_KEY", rootEnv.ISSUER_PRIVATE_KEY, "signing records"],
+  ["PINATA_JWT", rootEnv.PINATA_JWT, "IPFS uploads"],
+  ["GEMINI_API_KEY", rootEnv.GEMINI_API_KEY, "PDF field extraction"],
+  ["ALCHEMY_AMOY_URL", rootEnv.ALCHEMY_AMOY_URL, "faster RPC"],
+  ["ADMIN_EMAIL", rootEnv.ADMIN_EMAIL, "seed:admin"],
+  ["ADMIN_PASSWORD", rootEnv.ADMIN_PASSWORD, "seed:admin"],
 ];
 for (const [name, value, purpose] of optional) {
   if (value) ok(name, `set — ${purpose}`);
   else warn(name, `not set — ${purpose} unavailable`);
 }
-if (!backendEnv.PINATA_JWT && !(backendEnv.PINATA_API_KEY && backendEnv.PINATA_API_SECRET))
+if (!rootEnv.PINATA_JWT && !(rootEnv.PINATA_API_KEY && rootEnv.PINATA_API_SECRET))
   warn("PINATA_API_KEY/PINATA_API_SECRET", "not set — needed only if PINATA_JWT is absent");
 
 // ── 3. Frontend build-time vars ───────────────────────────
@@ -97,7 +97,7 @@ for (const name of ["REACT_APP_API_URL", "REACT_APP_TX_EXPLORER_URL"]) {
 // ── 4. Wallet addresses (offline, no RPC needed) ──────────
 const WALLET_KEYS = [
   ["DEPLOYER_PRIVATE_KEY", rootEnv.DEPLOYER_PRIVATE_KEY],
-  ["ISSUER_PRIVATE_KEY", rootEnv.ISSUER_PRIVATE_KEY || backendEnv.ISSUER_PRIVATE_KEY],
+  ["ISSUER_PRIVATE_KEY", rootEnv.ISSUER_PRIVATE_KEY],
 ];
 
 const wallets = [];
@@ -117,10 +117,9 @@ for (const [name, key] of WALLET_KEYS) {
 
 // ── 5. Chain state ────────────────────────────────────────
 async function checkChain() {
-  const rpc = backendEnv.ALCHEMY_AMOY_URL || rootEnv.ALCHEMY_AMOY_URL ||
-    backendEnv.AMOY_RPC_URL || rootEnv.AMOY_RPC_URL ||
+  const rpc = rootEnv.ALCHEMY_AMOY_URL || rootEnv.AMOY_RPC_URL ||
     "https://rpc-amoy.polygon.technology";
-  const contractAddress = backendEnv.CONTRACT_ADDRESS || rootEnv.CONTRACT_ADDRESS;
+  const contractAddress = rootEnv.CONTRACT_ADDRESS;
 
   const provider = new ethers.JsonRpcProvider(rpc);
   const network = await provider.getNetwork();
@@ -157,8 +156,8 @@ async function checkChain() {
 
 // ── 6. Database ───────────────────────────────────────────
 async function checkSupabase() {
-  const url = backendEnv.SUPABASE_URL;
-  const key = backendEnv.SUPABASE_SERVICE_ROLE_KEY;
+  const url = rootEnv.SUPABASE_URL;
+  const key = rootEnv.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return;
 
   const headers = { apikey: key, Authorization: `Bearer ${key}` };

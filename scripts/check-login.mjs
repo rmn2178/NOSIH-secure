@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 
-// ── Pull the admin email/password straight from backend/.env ──
-const envText = readFileSync(path.join(root, "backend", ".env"), "utf8");
+// ── Pull the admin email/password straight from the root .env ──
+const envText = readFileSync(path.join(root, ".env"), "utf8");
 function envValue(key) {
   const m = envText.match(new RegExp(`^${key}\\s*=\\s*(.*)$`, "m"));
   if (!m) return "";

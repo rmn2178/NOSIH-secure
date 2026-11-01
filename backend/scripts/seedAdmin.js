@@ -1,8 +1,6 @@
-import dotenv from "dotenv";
+import "../env.js"; // loads the repository-root .env — must come first
 import bcrypt from "bcryptjs";
 import { supabase } from "../supabase.js";
-
-dotenv.config();
 
 const BCRYPT_ROUNDS = 12;
 
@@ -11,7 +9,7 @@ async function seedAdmin() {
   const password = process.env.ADMIN_PASSWORD;
 
   if (!email || !password) {
-    throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required in backend/.env");
+    throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required in the root .env");
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);

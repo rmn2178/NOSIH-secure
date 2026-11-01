@@ -4,7 +4,7 @@
 
 **Network:** Polygon Amoy (chain ID `80002`) · **Contract:** Solidity `0.8.20` · **App:** Express 4 + React 18 · **Storage:** Supabase Postgres + Pinata IPFS
 
-The testnet deployment configured in this checkout is `0xE5a941d9628A7d7Ab497636A204B627F29070952`. Confirm it against `backend/.env` before relying on it.
+The testnet deployment configured in this checkout is `0xE5a941d9628A7d7Ab497636A204B627F29070952`. Confirm it against the root `.env` before relying on it.
 
 ---
 
@@ -756,6 +756,8 @@ NOSIH-secure/
 │   └── LandRegistry.test.js        Four Hardhat tests
 ├── backend/
 │   ├── server.js                   Express entrypoint, CORS, routes, health
+│   ├── env.js                      Loads the root .env (cwd-independent)
+│   ├── envCheck.js                 Startup audit of the boot-critical variables
 │   ├── config.js                   Upload cap (15 MB local / 4 MB Vercel)
 │   ├── supabase.js                 Service-role client, boot check, row mappers
 │   ├── middleware/
@@ -772,15 +774,14 @@ NOSIH-secure/
 │   │   └── qr.js                   Verify URL and labelled QR PNG
 │   ├── scripts/
 │   │   └── seedAdmin.js            Create or reset the admin user
-│   ├── supabase/
-│   │   └── schema.sql              Tables, constraints, indexes, triggers, RLS
-│   └── env.example                 Backend environment template
+│   └── supabase/
+│       └── schema.sql              Tables, constraints, indexes, triggers, RLS
 ├── frontend/
 │   ├── src/
 │   │   ├── App.js                  Routes and protected-route guard
 │   │   ├── components/
 │   │   │   ├── Layout.js           Sidebar, user info, sign out
-│   │   │   └── PolygonMark.js      Network mark
+│   │   │   └── ErrorBoundary.js    Renders a readable message instead of a blank page
 │   │   ├── pages/
 │   │   │   ├── LoginPage.js
 │   │   │   ├── DashboardPage.js
@@ -792,8 +793,10 @@ NOSIH-secure/
 │   │   │   └── api.js              Axios client and API helpers
 │   │   └── assets/
 │   │       └── nosih-logo.png
-│   ├── env.example
+│   ├── env.example                  REACT_APP_* template (build-time only)
 │   └── package.json                CRA, proxy to localhost:5000
+├── .env                            The one env file (not committed)
+├── .env.example                    Template for every key in the project
 ├── hardhat.config.js               Solidity 0.8.20, Amoy and Polygon networks
 ├── vercel.json                     Two services, one domain
 ├── package.json                    Hardhat scripts and contract dependencies
@@ -833,35 +836,34 @@ NOSIH-secure/
 
 ## Environment Variables
 
-Three env files are involved. Do not mix the root Hardhat env with the backend runtime env.
+**One env file: `.env` in the repository root.** Every key the project reads lives there —
+the Hardhat deployment keys and the backend runtime keys side by side, grouped by purpose.
 
-### Root `.env` (Hardhat deployment only)
+The backend resolves that file from its own module location (`backend/env.js`), not from the
+working directory, so `node backend/server.js`, `npm --prefix backend run dev` and
+`npm run smoke:api` all read the same file no matter where you start them. On Vercel there
+is no `.env` file — the platform injects the variables, so the same code path serves both
+environments.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `ALCHEMY_AMOY_URL` | Recommended | Amoy RPC; falls back to `AMOY_RPC_URL` then the public RPC |
-| `DEPLOYER_PRIVATE_KEY` | For deploy | Owner wallet; pays gas |
-| `ISSUER_ADDRESS` | Recommended | Registrar wallet to authorise during deploy |
-| `ISSUER_PRIVATE_KEY` | Alternative | Used to derive the registrar address if `ISSUER_ADDRESS` is absent |
-| `CONTRACT_ADDRESS` | For addIssuer | Existing deployment |
-| `CHAIN_ID` | Informational | Printed by the deploy script; Hardhat networks are fixed at 80002/137 |
-| `POLYGONSCAN_API_KEY` | Optional | Contract verification |
+The frontend keeps one separate file, `frontend/.env.local`, because CRA inlines
+`REACT_APP_*` values into the production bundle at build time.
 
-### `backend/.env`
+### `.env` (repository root)
 
 Boot-critical values are validated before the server listens.
 
 | Variable | Required | Default / notes |
 |---|---|---|
-| `SUPABASE_URL` | Yes | Server exits if missing |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server exits if missing or the `users` check fails |
-| `JWT_SECRET` | Yes | Server exits if missing |
+| `SUPABASE_URL` | Yes | The server reports it missing instead of starting |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service-role key; the publishable key cannot read the `users` table |
+| `JWT_SECRET` | Yes | Random string used to sign session tokens |
 | `JWT_EXPIRES_IN` | No | `8h` |
-| `DOCUMENT_ENC_KEY` | Yes | Exactly 64 hex characters; server exits otherwise |
-| `HASH_PEPPER` | Yes | Exactly 64 hex characters; server exits otherwise |
+| `DOCUMENT_ENC_KEY` | Yes | Exactly 64 hex characters |
+| `HASH_PEPPER` | Yes | Exactly 64 hex characters |
 | `CONTRACT_ADDRESS` | For chain features | LandRegistry address |
 | `ISSUER_PRIVATE_KEY` | For writes | Registrar wallet; `0x` optional |
 | `ALCHEMY_AMOY_URL` | No | Falls back to `AMOY_RPC_URL`, then `https://rpc-amoy.polygon.technology` |
+| `AMOY_RPC_URL` | No | Public Amoy RPC |
 | `PINATA_JWT` | For uploads | Preferred Pinata credential |
 | `PINATA_API_KEY`, `PINATA_API_SECRET` | Alternative | Used when `PINATA_JWT` is absent |
 | `GEMINI_API_KEY` | For extraction | Without it, `/extract` reports an error and the form is manual |
@@ -874,6 +876,11 @@ Boot-critical values are validated before the server listens.
 | `IPFS_FETCH_TIMEOUT_MS` | No | `15000` |
 | `MAX_UPLOAD_MB` | No | `15` locally, `4` when `VERCEL` is set |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Seed only | Used by `npm run seed:admin` |
+| `DATABASE_URL` | Admin scripts only | Direct Postgres; used by `npm run db:reset` |
+| `DEPLOYER_PRIVATE_KEY` | For deploy | Contract owner; pays gas and is the only account that can add or remove registrars |
+| `ISSUER_ADDRESS` | Recommended | Registrar wallet to authorise during deploy |
+| `CHAIN_ID` | Informational | Printed by the deploy script; Hardhat networks are fixed at 80002/137 |
+| `POLYGONSCAN_API_KEY` | Optional | Contract verification |
 | `VERCEL` | Auto | Set by the platform; switches the upload default and listener behaviour |
 
 Generate the two 32-byte secrets:
@@ -906,10 +913,10 @@ In production, same-origin `/api` is used and neither variable is required.
 | `npm run check:jwt` | Decodes a Pinata scoped JWT and validates it against Pinata's live API (also reads a commented-out `PINATA_JWT`, so a candidate token can be tested before enabling it) |
 | `npm run check:ipfs` | Uploads a 1-byte file through the real `uploadToIPFS` service |
 | `npm run smoke:api` | Logs in as the seeded admin and exercises the protected read endpoints |
-| `npm run check:login` | Replays the exact browser login sequence (POST `/auth/login` then GET `/auth/me`) using `ADMIN_EMAIL`/`ADMIN_PASSWORD` from `backend/.env`; pass a base URL to point it at a deployed host |
+| `npm run check:login` | Replays the exact browser login sequence (POST `/auth/login` then GET `/auth/me`) using `ADMIN_EMAIL`/`ADMIN_PASSWORD` from the root `.env`; pass a base URL to point it at a deployed host |
 | `npm run check:boot` | Boots a second copy of the backend with a deliberately broken environment and proves it stays up and names the missing variables instead of crashing |
 | `npm run check:ui-failure` | Serves the production build with an API that always fails, to confirm the UI shows a message rather than a blank page |
-| `npm run vercel:env` | Uploads every variable the code reads from the local `.env` files to the Vercel project (needs `vercel login`) |
+| `npm run vercel:env` | Uploads every variable the code reads from the root `.env` to the Vercel project (needs `vercel login`) |
 | `npm run db:reset` | Drops every table in the `public` schema and re-applies `backend/supabase/schema.sql` — pass `--dry-run` to preview first |
 
 ```bash
@@ -933,14 +940,14 @@ npm install --prefix frontend
 1. Create a Supabase project.
 2. Open the SQL Editor.
 3. Paste and run [`backend/supabase/schema.sql`](backend/supabase/schema.sql). It is safe to re-run.
-4. Copy the project URL and service-role key into `backend/.env`.
+4. Copy the project URL and service-role key into the root `.env`.
 
-To start from an empty database instead of applying the schema by hand, set `DATABASE_URL` in `backend/.env` and run `npm run db:reset --dry-run` to preview, then `npm run db:reset`. It drops every table in the `public` schema and re-applies `schema.sql`.
+To start from an empty database instead of applying the schema by hand, set `DATABASE_URL` in the root `.env` and run `npm run db:reset --dry-run` to preview, then `npm run db:reset`. It drops every table in the `public` schema and re-applies `schema.sql`.
 
 ### 3. Configure the backend
 
 ```bash
-cp backend/env.example backend/.env
+cp .env.example .env
 ```
 
 Fill in Supabase, Polygon, Pinata, Gemini, JWT, encryption, and pepper values. Generate the two 64-hex secrets with the command above. Set `VERIFY_BASE_URL` for local QR codes.
@@ -952,7 +959,7 @@ cd backend
 npm run seed:admin
 ```
 
-The script creates the user if the email is new, or resets its password and restores `role = 'admin'`, `active = true` if it already exists. It requires `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `backend/.env`.
+The script creates the user if the email is new, or resets its password and restores `role = 'admin'`, `active = true` if it already exists. It requires `ADMIN_EMAIL` and `ADMIN_PASSWORD` in the root `.env`.
 
 ### 5. Compile and test the contract
 
@@ -975,7 +982,7 @@ or:
 npm run deploy:amoy
 ```
 
-The script deploys `LandRegistry`, prints the address and chain ID, and authorises the registrar if an address is available. Copy the address into `backend/.env` as `CONTRACT_ADDRESS`.
+The script deploys `LandRegistry`, prints the address and chain ID, and authorises the registrar if an address is available. Copy the address into the root `.env` as `CONTRACT_ADDRESS`.
 
 If the registrar was not authorised during deploy:
 
@@ -1076,7 +1083,7 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
 ### Steps
 
 1. Import the repository at [vercel.com/new](https://vercel.com/new). Keep the root directory as the repository root.
-2. Add environment variables from `backend/.env` in Project → Settings → Environment Variables:
+2. Add environment variables from the root `.env` in Project → Settings → Environment Variables:
 
    ```
    ALCHEMY_AMOY_URL
@@ -1108,7 +1115,7 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
 
 3. Deploy. No frontend API URL or CORS configuration is needed for the single-domain setup.
 
-   Instead of pasting every value into the dashboard, push the local `.env` files to the
+   Instead of pasting every value into the dashboard, push the root `.env` to the
    project in one command:
 
    ```bash
@@ -1117,7 +1124,7 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
    vercel --prod
    ```
 
-   The script reads `backend/.env` and the root `.env`, uploads only the variables the
+   The script reads the root `.env`, uploads only the variables the
    code actually reads, and rewrites `FRONTEND_URL` to the production domain when the
    local value points at `localhost`. Use `--dry-run` to preview the list first.
 
@@ -1238,7 +1245,7 @@ the app, so a failure shows a message instead of a blank screen.
 
 ### Sign-in troubleshooting
 
-If "Sign In" appears to do nothing, the password in `backend/.env` is not the one stored for the user. `ADMIN_PASSWORD` is only a seed input — the live password lives as a bcrypt hash in the `users` table, so editing the env file alone changes nothing until you re-seed:
+If "Sign In" appears to do nothing, the password in the root `.env` is not the one stored for the user. `ADMIN_PASSWORD` is only a seed input — the live password lives as a bcrypt hash in the `users` table, so editing the env file alone changes nothing until you re-seed:
 
 ```bash
 npm run seed:admin --prefix backend
@@ -1276,7 +1283,7 @@ Failed chain writes can leave an orphaned encrypted pin. It contains only cipher
 - Supabase: enable point-in-time recovery or scheduled backups.
 - Pinata: pins are content-addressed; keep the CID and encryption key. A database backup without the key cannot decrypt deeds.
 - Contract: records are immutable, but back up the deployment address, ABI, and owner/registrar addresses.
-- Environment: store secrets in a secret manager, not only in `.env` files.
+- Environment: store secrets in a secret manager, not only in the root `.env` file.
 
 ---
 
@@ -1305,7 +1312,7 @@ Failed chain writes can leave an orphaned encrypted pin. It contains only cipher
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Backend exits with `FATAL: JWT_SECRET environment variable is not set` | Missing JWT secret | Set `JWT_SECRET` in `backend/.env` |
+| Backend exits with `FATAL: JWT_SECRET environment variable is not set` | Missing JWT secret | Set `JWT_SECRET` in the root `.env` |
 | Backend exits with `DOCUMENT_ENC_KEY must be set … 64 hex characters` | Missing or malformed key | Generate 32 random bytes as hex and set it |
 | Backend exits with `FATAL: Supabase connection check failed` | Wrong URL/key or missing schema | Run `backend/supabase/schema.sql`; verify project URL and service-role key |
 | Warning `land_records table not reachable` | Schema not applied | Run the SQL schema; auth still works but land routes will fail |

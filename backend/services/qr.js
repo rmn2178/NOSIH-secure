@@ -3,6 +3,7 @@
  * The QR encodes the public verify URL for the parcel.
  */
 
+import "../env.js"; // loads the repository-root .env — must come first
 import QRCode from "qrcode";
 
 // sharp is a native module. Loading it on first use keeps a platform-level

@@ -29,10 +29,10 @@ function readEnvFile(file) {
 }
 
 (async () => {
-  const env = readEnvFile(path.join(ROOT, "backend", ".env"));
+  const env = readEnvFile(path.join(ROOT, ".env"));
   const url = env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_URL missing from backend/.env");
+    console.error("DATABASE_URL missing from the root .env");
     process.exit(1);
   }
 

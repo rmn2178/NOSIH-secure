@@ -24,11 +24,10 @@ function readEnvFile(file) {
 }
 
 const rootEnv = readEnvFile(path.join(ROOT, ".env"));
-const beEnv = readEnvFile(path.join(ROOT, "backend", ".env"));
 const normKey = (k) => (!k ? null : k.startsWith("0x") ? k : `0x${k.trim()}`);
 
 (async () => {
-  const rpc = beEnv.AMOY_RPC_URL || beEnv.ALCHEMY_AMOY_URL || rootEnv.AMOY_RPC_URL;
+  const rpc = rootEnv.ALCHEMY_AMOY_URL || rootEnv.AMOY_RPC_URL;
   const provider = new ethers.JsonRpcProvider(rpc);
 
   console.log("── Amoy balances ──");
@@ -43,8 +42,8 @@ const normKey = (k) => (!k ? null : k.startsWith("0x") ? k : `0x${k.trim()}`);
   }
 
   console.log("\n── Supabase users ──");
-  const url = beEnv.SUPABASE_URL;
-  const key = beEnv.SUPABASE_SERVICE_ROLE_KEY;
+  const url = rootEnv.SUPABASE_URL;
+  const key = rootEnv.SUPABASE_SERVICE_ROLE_KEY;
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
   try {
     const res = await fetch(`${url}/rest/v1/users?select=id,email,role,active`, { headers });
@@ -62,9 +61,9 @@ const normKey = (k) => (!k ? null : k.startsWith("0x") ? k : `0x${k.trim()}`);
 
   console.log("\n── Land records already on chain ──");
   const c = new ethers.Contract(
-    beEnv.CONTRACT_ADDRESS,
+    rootEnv.CONTRACT_ADDRESS,
     ["function recordExists(bytes32) external view returns (bool)"],
     provider
   );
-  console.log(`  contract ${beEnv.CONTRACT_ADDRESS}`);
+  console.log(`  contract ${rootEnv.CONTRACT_ADDRESS}`);
 })();

@@ -9,6 +9,7 @@
  * before anything is hashed or written on-chain.
  */
 
+import "../env.js"; // loads the repository-root .env — must come first
 import fs from "fs";
 import { createRequire } from "module";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -50,7 +51,7 @@ const MAX_VISION_PAGES = 3;
 let genAI = null;
 function getGenAI() {
   if (!genAI) {
-    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set in backend/.env");
+    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set in the root .env");
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   }
   return genAI;

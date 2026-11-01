@@ -1,6 +1,5 @@
+import "../env.js"; // loads the repository-root .env — must come first
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-dotenv.config();
 
 // JWT_SECRET is audited by envCheck.js. The server keeps running when it is
 // missing and answers with a readable error, instead of exiting at import

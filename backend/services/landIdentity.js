@@ -9,6 +9,7 @@
  * - Deed PDFs are encrypted with AES-256-GCM before IPFS upload.
  */
 
+import "../env.js"; // loads the repository-root .env — must come first
 import crypto from "crypto";
 import { ethers } from "ethers";
 import { v4 as uuidv4 } from "uuid";
@@ -18,7 +19,7 @@ const ZERO = ethers.ZeroHash;
 function requireHexKey(name) {
   const value = process.env[name];
   if (!value || !/^[0-9a-fA-F]{64}$/.test(value)) {
-    throw new Error(`${name} must be set in backend/.env as 64 hex characters (32 bytes)`);
+    throw new Error(`${name} must be set in the root .env as 64 hex characters (32 bytes)`);
   }
   return Buffer.from(value, "hex");
 }

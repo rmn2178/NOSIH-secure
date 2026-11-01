@@ -5,12 +5,10 @@
  * Vercel:     imported by the zero-config Express runtime, which uses the
  *             default export as the request handler for every path.
  */
+import "./env.js"; // loads the repository-root .env — must come first
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { MAX_UPLOAD_MB } from "./config.js";
-
-dotenv.config();
 
 import { supabaseBootError } from "./supabase.js"; // connects + validates at boot
 import { auditEnv, describeProblems } from "./envCheck.js";

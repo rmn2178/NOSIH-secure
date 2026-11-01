@@ -11,6 +11,7 @@
  * legal ownership or document authenticity.
  */
 
+import "../env.js"; // loads the repository-root .env — must come first
 import { Router } from "express";
 import multer from "multer";
 import jwt from "jsonwebtoken";

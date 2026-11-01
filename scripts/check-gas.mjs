@@ -17,8 +17,7 @@ const BACKEND = path.join(ROOT, "backend");
 const asUrl = (p) => pathToFileURL(p).href;
 
 const { default: dotenv } = await import(asUrl(path.join(BACKEND, "node_modules", "dotenv/lib/main.js")));
-dotenv.config({ path: path.join(BACKEND, ".env") });
-dotenv.config({ path: path.join(ROOT, ".env"), override: false });
+dotenv.config({ path: path.join(ROOT, ".env") });
 const ethers = await import(asUrl(path.join(BACKEND, "node_modules", "ethers/lib.esm/index.js")));
 
 const normKey = (k) => (!k ? null : k.startsWith("0x") ? k : `0x${k.trim()}`);
