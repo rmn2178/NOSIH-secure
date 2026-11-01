@@ -99,7 +99,29 @@ const record = (label, pass, detail) => {
     record("GET /api/land/stats", false, e.message);
   }
 
-  // 6. Auth is enforced
+  // 6. Land identity pipeline — HMAC hashing via HASH_PEPPER + DB lookup.
+  //    /preview never writes a record and never touches the blockchain.
+  try {
+    const res = await fetch(`${BASE}/api/land/preview`, {
+      method: "POST",
+      headers: { ...authed, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        state: "Tamil Nadu",
+        district: "Coimbatore",
+        taluk: "Pollachi",
+        village: "Kinathukadavu",
+        surveyNumber: "234/1B",
+        subdivisionNumber: "1",
+      }),
+    });
+    const body = await res.json();
+    const ok = res.ok && /^LAND-[0-9A-F]{10}$/.test(body.landId || "");
+    record("POST /api/land/preview", ok, ok ? `landId=${body.landId} exists=${body.exists}` : body.error || `HTTP ${res.status}`);
+  } catch (e) {
+    record("POST /api/land/preview", false, e.message);
+  }
+
+  // 7. Auth is enforced
   try {
     const res = await fetch(`${BASE}/api/land`);
     record("GET /api/land (no token)", res.status === 401, `HTTP ${res.status} — ${res.status === 401 ? "rejected" : "NOT REJECTED"}`);

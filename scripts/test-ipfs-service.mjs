@@ -26,7 +26,7 @@ const mode = process.argv.includes("--keypair")
 
 if (process.argv.includes("--keypair")) delete process.env.PINATA_JWT;
 
-const { uploadToIPFS } = await import(asUrl(path.join(BACKEND, "services", "ipfs.js")));
+const { uploadToIPFS, fetchIPFSFile } = await import(asUrl(path.join(BACKEND, "services", "ipfs.js")));
 
 console.log(`\n── uploadToIPFS via ${mode} ──`);
 
@@ -35,6 +35,17 @@ try {
   const cid = await uploadToIPFS(Buffer.from("x"), "nosih-ipfs-test.txt", "text/plain");
   console.log(`  [PASS] uploaded 1 byte → CID ${cid}  (${Date.now() - started}ms)`);
   console.log(`  gateway: https://gateway.pinata.cloud/ipfs/${cid}`);
+
+  // The verify page fetches the stored deed back through the gateways.
+  try {
+    const result = await fetchIPFSFile(cid);
+    const bytes = result?.buffer?.length;
+    console.log(
+      `  [${bytes === 1 ? "PASS" : "FAIL"}] fetched back via ${result?.sourceUrl} — ${bytes} byte(s)`
+    );
+  } catch (e) {
+    console.log(`  [FAIL] fetch back — ${e.message}`);
+  }
 } catch (e) {
   console.log(`  [FAIL] ${e.message}`);
   if (e.details) console.log(`  details: ${e.details}`);
