@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FileUp, FolderOpen, ScanSearch } from "lucide-react";
 import logo from "../assets/nosih-logo.png";
+import { TourLauncher } from "./tour/TourLauncher";
 
 const NAV_ICON = { size: 18, strokeWidth: 1.75, "aria-hidden": true };
 
@@ -51,6 +52,7 @@ export default function Layout({ title, children }) {
             <span className="role-badge">{user.role}</span>
           </div>
           <button onClick={logout} className="logout-btn">Sign Out</button>
+          <TourLauncher variant="sidebar" />
         </div>
       </aside>
 
@@ -58,6 +60,7 @@ export default function Layout({ title, children }) {
       <main className="main-content">
         <header className="page-header">
           <h1>{title}</h1>
+          <TourLauncher variant="page-help" />
         </header>
         <div className="page-body">{children}</div>
       </main>

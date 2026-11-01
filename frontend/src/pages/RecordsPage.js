@@ -144,17 +144,17 @@ export default function RecordsPage() {
                     </td>
                     <td>
                       <div className="action-btns">
-                        <a href={`/verify?landId=${r.landId}`} className="btn btn-sm btn-secondary" target="_blank" rel="noreferrer" title="Public verify page">
+                        <a href={`/verify?landId=${r.landId}`} className="btn btn-sm btn-secondary" target="_blank" rel="noreferrer" title="Public verify page" data-tour="action-verify">
                           <ExternalLink {...ICON} /> Verify
                         </a>
-                        <button className="btn btn-sm btn-outline" onClick={() => openDeed(r)} disabled={busy === r.recordId + ":doc"} title="Decrypt and open the deed">
+                        <button className="btn btn-sm btn-outline" onClick={() => openDeed(r)} disabled={busy === r.recordId + ":doc"} title="Decrypt and open the deed" data-tour="action-deed">
                           <FileText {...ICON} /> {busy === r.recordId + ":doc" ? "…" : "Deed"}
                         </button>
-                        <button className="btn btn-sm btn-outline" onClick={() => downloadLandQr(r.landId)} title="Download QR">
+                        <button className="btn btn-sm btn-outline" onClick={() => downloadLandQr(r.landId)} title="Download QR" data-tour="action-qr">
                           <QrCode {...ICON} /> QR
                         </button>
                         {r.status !== "revoked" && (
-                          <button className="btn btn-sm btn-danger" onClick={() => handleRevoke(r)} disabled={busy === r.recordId + ":revoke"}>
+                          <button className="btn btn-sm btn-danger" onClick={() => handleRevoke(r)} disabled={busy === r.recordId + ":revoke"} data-tour="action-revoke">
                             <Ban {...ICON} /> {busy === r.recordId + ":revoke" ? "Revoking…" : "Revoke"}
                           </button>
                         )}

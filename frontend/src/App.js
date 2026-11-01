@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import RecordsPage from "./pages/RecordsPage";
 import VerifyPage from "./pages/VerifyPage";
 import api from "./utils/api";
+import { TourProvider } from "./components/tour/TourProvider";
 
 function PrivateRoute({ children }) {
   const [status, setStatus] = useState("checking"); // checking | valid | invalid
@@ -35,19 +36,23 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/verify" element={<VerifyPage />} />
+      {/* The provider sits inside the router so it can navigate between the
+          surfaces the walkthrough visits. */}
+      <TourProvider>
+        <Routes>
+          {/* Public */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify" element={<VerifyPage />} />
 
-        {/* Protected Issuer Portal */}
-        <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-        <Route path="/register" element={<PrivateRoute><RegisterPage /></PrivateRoute>} />
-        <Route path="/records" element={<PrivateRoute><RecordsPage /></PrivateRoute>} />
+          {/* Protected Issuer Portal */}
+          <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+          <Route path="/register" element={<PrivateRoute><RegisterPage /></PrivateRoute>} />
+          <Route path="/records" element={<PrivateRoute><RecordsPage /></PrivateRoute>} />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </TourProvider>
     </BrowserRouter>
   );
 }

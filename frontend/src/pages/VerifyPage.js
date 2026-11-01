@@ -6,6 +6,7 @@ import {
   FileSearch, FileText, MapPin, Info, CircleCheck, CircleAlert, Lock, Download, X,
 } from "lucide-react";
 import { verifyLand, checkLandDocument, landQrUrl, fetchLandOriginal, apiErrorMessage } from "../utils/api";
+import { TourLauncher } from "../components/tour/TourLauncher";
 import logo from "../assets/nosih-logo.png";
 
 const TX_EXPLORER_URL = process.env.REACT_APP_TX_EXPLORER_URL || "https://amoy.polygonscan.com/tx";
@@ -148,6 +149,8 @@ export default function VerifyPage() {
 
   return (
     <div className="verify-wrapper">
+      <TourLauncher variant="corner" />
+
       <div className="verify-header">
         <img src={logo} alt="NOSIH logo" className="logo-img" />
         <h1>NOSIH</h1>
@@ -314,6 +317,8 @@ export default function VerifyPage() {
       <div className="verify-footer">
         <a href="/login">Registrar portal →</a>
       </div>
+
+      <TourLauncher variant="floating" />
 
       {docView && (
         <div

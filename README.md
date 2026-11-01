@@ -19,6 +19,7 @@ The testnet deployment configured in this checkout is `0xE5a941d9628A7d7Ab497636
 - [Data Model](#data-model)
 - [API Reference](#api-reference)
 - [Frontend](#frontend)
+- [Guided Walkthrough](#guided-walkthrough)
 - [QR Codes](#qr-codes)
 - [Project Structure](#project-structure)
 - [Tech Stack](#tech-stack)
@@ -726,6 +727,71 @@ The token and user profile are stored in `sessionStorage`, not `localStorage`. T
 
 ---
 
+## Guided Walkthrough
+
+The SPA ships with a built-in, zero-dependency product tour. On a first visit the app asks whether to take it; skipping fills in the demo sign-in so the visitor lands straight on the registry.
+
+All of it lives in one folder — `frontend/src/components/tour/`:
+
+| File | Role |
+|---|---|
+| `TourProvider.js` | The engine: step state, routing, persistence, the sign-in gate, keyboard control |
+| `Spotlight.js` | The dimming overlay with a cut-out hole over the element under discussion |
+| `TourTooltip.js` | The step card: title, copy, progress, Previous/Next/Skip, focus trap |
+| `TourWelcome.js` | The first-visit prompt: take the walkthrough, or skip |
+| `TourLauncher.js` | The entry points: sidebar button, inline `?`, floating chip |
+| `tourSteps.json` | The 39-step catalogue — id, group, route, anchor, placement, copy |
+| `tourSteps.js` | Loads the catalogue and attaches the behaviour hooks |
+| `demoCredentials.js` | The demo sign-in used by the skip path |
+| `tour.css` | The overlay, card, welcome and launcher styles |
+
+### How it works
+
+- **39 steps** across five surfaces: sign-in (4), dashboard (7), register a deed (9), records (9), public verification (10).
+- **A spotlight, not a screenshot.** One fixed rectangle is moved onto the anchor element and darkened with an oversized `box-shadow`. The hole is `pointer-events: none`, so the page underneath stays usable.
+- **The anchor is the contract.** Each step names a CSS selector; the engine waits for that element to exist and to have a non-zero size before it shows the card. The `resize` and `scroll` listeners keep the hole glued while the page moves.
+- **Read-only by construction.** Nothing in the tour registers a deed, revokes a record, or writes to the chain. The register steps drive a read-only preview of the form, and the receipt step renders from a parcel that already exists.
+- **The sign-in gate.** The four opening steps are public. When the tour reaches the registrar side it shows a "Sign in to continue" card rather than filtering steps out, so nothing is skipped and there is no redirect loop. Signing in resumes the tour at the step it paused on.
+- **Resumable.** The current position and the walkthrough/skipped decision are kept in `localStorage` under `nosih.tour.position` and `nosih.tour.decision`. The sidebar launcher shows "Resume tour (step N of 39)" and the walkthrough can be restarted at any time.
+- **Accessible.** The card is a `role="dialog" aria-modal="true"` with a focus trap, an `aria-live` announcer, and full keyboard control (`←`/`→`, `Enter`, `Esc`). `prefers-reduced-motion` disables every transition.
+
+### Running it
+
+| Entry point | Effect |
+|---|---|
+| First visit | Prompts: "Take the walkthrough?" or "Skip" |
+| Skip | Fills the demo credentials and signs in |
+| Sidebar button | Take a tour, or resume from the saved step |
+| `?` on any page | Inline launcher for that surface |
+| `?tour=1` | Starts the tour at step 1 |
+| `?tour=records` | Starts at the first step of that group |
+
+`?tour=<group>` accepts `login`, `dashboard`, `register`, `records` and `verify`.
+
+### Checking the catalogue
+
+```bash
+npm run check:tour
+```
+
+This is the check that catches rot, because a CSS selector is just a string — renaming a class in the markup would otherwise break a step silently. It verifies that the catalogue is well formed, that every route exists in `App.js` and that its auth flag matches, that the sign-in gate sits at the login boundary, and that **every class and attribute used by every anchor still exists in the rendered markup**. It also checks the fixture parcel against the live verify API so the copy cannot drift from the registry.
+
+```
+PASS  every step is well formed — 39 steps checked
+PASS  routes exist and match the auth flag — 6 routes declared in App.js
+PASS  the sign-in gate sits at the login boundary — 4 public intro steps, gate before "dashboard-headline"
+PASS  every anchor token exists in the markup — 39 anchors checked
+PASS  live verify API agrees with the catalogue — 1 records, on-chain=true
+```
+
+Flags: `--live` makes an unreachable API fatal, `--base <url>` points at another API, `--drive` enables the optional browser tier.
+
+### Demo credentials
+
+`frontend/src/components/tour/demoCredentials.js` holds the demo registrar sign-in so the skip path can fill it in. **Those values are in the public bundle.** That is acceptable for a demo and unacceptable for a real registry — replace the file with an empty object, or remove it and the skip path with it, before this goes anywhere real.
+
+---
+
 ## QR Codes
 
 Each QR encodes:
@@ -751,7 +817,8 @@ NOSIH-secure/
 │   └── LandRegistry.sol            Contract: records, registrars, revocation
 ├── scripts/
 │   ├── deploy.js                   Deploy and authorise the registrar
-│   └── addIssuer.js                Add an authorised registrar
+│   ├── addIssuer.js                Add an authorised registrar
+│   └── check-tour-steps.mjs        Verifies the walkthrough catalogue against the markup
 ├── test/
 │   └── LandRegistry.test.js        Four Hardhat tests
 ├── backend/
@@ -781,7 +848,8 @@ NOSIH-secure/
 │   │   ├── App.js                  Routes and protected-route guard
 │   │   ├── components/
 │   │   │   ├── Layout.js           Sidebar, user info, sign out
-│   │   │   └── ErrorBoundary.js    Renders a readable message instead of a blank page
+│   │   │   ├── ErrorBoundary.js    Renders a readable message instead of a blank page
+│   │   │   └── tour/              The guided walkthrough (one folder, zero dependencies)
 │   │   ├── pages/
 │   │   │   ├── LoginPage.js
 │   │   │   ├── DashboardPage.js
@@ -1052,6 +1120,14 @@ Current result: **4 passing**. The tests cover:
 2. Linking a follow-up record without on-chain lookups.
 3. Rejecting duplicate records and unauthorised callers.
 4. Revoking once and rejecting a second revocation.
+
+### Walkthrough catalogue
+
+```bash
+npm run check:tour
+```
+
+Current result: **PASS**. It proves the 39-step catalogue is well formed, that every route and auth flag matches `App.js`, that the sign-in gate sits at the login boundary, and that every class and attribute used by an anchor still exists in the rendered markup. See [Guided Walkthrough](#guided-walkthrough).
 
 ### Manual smoke checklist
 

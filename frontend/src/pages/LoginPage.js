@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, apiErrorMessage } from "../utils/api";
 import logo from "../assets/nosih-logo.png";
+import { TourLauncher } from "../components/tour/TourLauncher";
+import { useTour } from "../components/tour/TourProvider";
+import { DEMO_CREDENTIALS, tourWasSkipped } from "../components/tour/demoCredentials";
 import "./styles.css";
 
 export default function LoginPage() {
@@ -9,7 +12,37 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const formRef = useRef(null);
   const navigate = useNavigate();
+  const { skipped } = useTour();
+
+  // ── Demo sign-in ───────────────────────────────────────
+  // Skipping the walkthrough fills the form in, and the walkthrough itself
+  // can ask for a sign-in when it reaches a registrar-only screen.
+  const fillDemoCredentials = () => {
+    setEmail(DEMO_CREDENTIALS.email);
+    setPassword(DEMO_CREDENTIALS.password);
+  };
+
+  useEffect(() => {
+    if (tourWasSkipped()) fillDemoCredentials();
+
+    const onTourSignIn = () => {
+      fillDemoCredentials();
+      // Let React commit the values before the form is submitted.
+      setTimeout(() => {
+        if (formRef.current) formRef.current.requestSubmit();
+      }, 80);
+    };
+
+    window.addEventListener("nosih:tour-signin", onTourSignIn);
+    return () => window.removeEventListener("nosih:tour-signin", onTourSignIn);
+  }, []);
+
+  // The visitor may skip the walkthrough after this page has loaded.
+  useEffect(() => {
+    if (skipped) fillDemoCredentials();
+  }, [skipped]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -30,13 +63,15 @@ export default function LoginPage() {
   return (
     <div className="auth-wrapper">
       <div className="auth-card">
+        <TourLauncher variant="corner" />
+
         <div className="auth-logo">
           <img src={logo} alt="NOSIH logo" className="logo-img" />
           <h1>NOSIH</h1>
           <p>Decentralized Deed Authentication</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} ref={formRef}>
           <div className="field">
             <label>Email</label>
             <input

@@ -778,6 +778,7 @@ textarea:focus {
 }
 
 .auth-card {
+  position: relative;
   background: var(--surface);
   border-radius: 16px;
   padding: 40px;
@@ -826,6 +827,7 @@ textarea:focus {
 
 /* ── Verify Pages ─────────────────────────────────────── */
 .verify-wrapper {
+  position: relative;
   min-height: 100vh;
   background: var(--bg-main);
   padding: 40px 20px;

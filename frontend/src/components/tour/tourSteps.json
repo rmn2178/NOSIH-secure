@@ -1,0 +1,390 @@
+{
+  "fixture": {
+    "landId": "LAND-B5F024C626",
+    "recordId": "REC-70AE6AD5",
+    "currentOwnerId": "OWN-31E19C9D",
+    "previousOwnerId": "OWN-5A50DDEE",
+    "jurisdictionCode": "MAHARASHTRA-MUMBAISUBURBAN-ANDH",
+    "txHash": "0x9b2eb5236c27cfa8925e68a8a13285183abf1f47098ce6fd4ba3ea30526a28c5",
+    "documentHash": "0x18eb5b28c7480bd0db8a6f6b97fedf75a37bf07c9e256ec002e222f642106324",
+    "ipfsCID": "QmQHvfCbH5hdEgVrG14QZtZjVBkZQ7t6ucga2uTEK7VgVG"
+  },
+  "steps": [
+    {
+      "id": "login-logo",
+      "group": "login",
+      "route": "/login",
+      "anchor": ".auth-logo",
+      "placement": "bottom",
+      "title": "NOSIH",
+      "body": "A decentralised registry of land deeds. Records are written to Polygon Amoy; the documents stay encrypted and off-chain."
+    },
+    {
+      "id": "login-email",
+      "group": "login",
+      "route": "/login",
+      "anchor": ".auth-card .field:first-of-type",
+      "placement": "right",
+      "title": "Sign in",
+      "body": "Registrar accounts only. The token is issued here and held for the session — it never leaves the browser."
+    },
+    {
+      "id": "login-public-link",
+      "group": "login",
+      "route": "/login",
+      "anchor": ".auth-links",
+      "placement": "top",
+      "title": "Public verification",
+      "body": "No account needed. Anyone with a Land ID can check who owns a parcel and whether the record still matches the chain."
+    },
+    {
+      "id": "login-overview",
+      "group": "login",
+      "route": "/login",
+      "anchor": ".auth-card",
+      "placement": "right",
+      "title": "What happens next",
+      "body": "Four steps take you through the whole system: register a deed, watch the registry, open the records table, then verify a parcel as a stranger would."
+    },
+    {
+      "id": "dashboard-headline",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".dashboard-headline",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "The registry at a glance",
+      "body": "Every deed is anchored on-chain and mirrored in an access-controlled database. This page is the registrar's view of both."
+    },
+    {
+      "id": "dashboard-stats",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".stats-grid",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "Live counters",
+      "body": "Parcels, records, transfers and revocations, read from the database on every load. They are never cached."
+    },
+    {
+      "id": "dashboard-recent",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".card",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "Recent records",
+      "body": "The five most recent registrations. A Land ID here is the permanent identity of a parcel — it survives every later transfer."
+    },
+    {
+      "id": "dashboard-action-register",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".action-card[href='/register']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Register a deed",
+      "body": "Upload the signed PDF. The server reads it, encrypts it, pins it, and writes only hashes and owner IDs to the chain."
+    },
+    {
+      "id": "dashboard-action-records",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".action-card[href='/records']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Search the registry",
+      "body": "Search by Land ID, record, survey number, village or owner. Open a deed, download its QR, or revoke it."
+    },
+    {
+      "id": "dashboard-action-verify",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".action-card[href='/verify']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Verify as the public",
+      "body": "The same view a citizen sees: an ownership timeline with no registrar login, cross-checked against the chain on every request."
+    },
+    {
+      "id": "dashboard-session",
+      "group": "dashboard",
+      "route": "/",
+      "anchor": ".sidebar-footer",
+      "placement": "right",
+      "requiresAuth": true,
+      "title": "Your session",
+      "body": "The signed-in registrar and their role. Sign out clears the token from this tab only."
+    },
+    {
+      "id": "register-dropzone",
+      "group": "register",
+      "route": "/register",
+      "anchor": ".dropzone",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "Start with the document",
+      "body": "Drop the registered deed PDF. AI reads the survey number, boundaries and registration details, and pre-fills the form — every field stays editable."
+    },
+    {
+      "id": "register-land-id",
+      "group": "register",
+      "route": "/register",
+      "anchor": ".land-id-panel",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "The parcel identity",
+      "body": "The Land ID is derived from jurisdiction, survey number and subdivision. The same parcel always derives the same Land ID, whatever the owner."
+    },
+    {
+      "id": "register-land-id-linked",
+      "group": "register",
+      "route": "/register",
+      "anchor": ".land-id-panel",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "Linking to an existing parcel",
+      "body": "When the Land ID already exists, the new deed becomes the next record in that chain and inherits the previous owner automatically."
+    },
+    {
+      "id": "register-parties",
+      "group": "register",
+      "route": "/register",
+      "anchor": "[data-tour='section-parties']",
+      "placement": "right",
+      "requiresAuth": true,
+      "title": "Parties",
+      "body": "Buyer and seller. Names stay in the database; the chain only ever sees keyed hashes and registry IDs like OWN-31E19C9D."
+    },
+    {
+      "id": "register-location",
+      "group": "register",
+      "route": "/register",
+      "anchor": "[data-tour='section-location']",
+      "placement": "right",
+      "requiresAuth": true,
+      "title": "Location",
+      "body": "State, district, taluk, village and survey number. Together they derive the jurisdiction code and the Land ID."
+    },
+    {
+      "id": "register-details",
+      "group": "register",
+      "route": "/register",
+      "anchor": "[data-tour='section-details']",
+      "placement": "right",
+      "requiresAuth": true,
+      "title": "Land details and registration",
+      "body": "Area and boundaries, document type, registration number, date and the sub-registrar office."
+    },
+    {
+      "id": "register-privacy",
+      "group": "register",
+      "route": "/register",
+      "anchor": ".privacy-note",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "What actually goes on-chain",
+      "body": "Only hashes, the encrypted file's CID and owner registry IDs. Names, survey numbers and boundaries stay in the access-controlled database."
+    },
+    {
+      "id": "register-receipt",
+      "group": "register",
+      "route": "/register",
+      "anchor": ".register-done",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "The receipt",
+      "body": "A QR code for the parcel, the Land ID and Record ID, the transaction on Amoy, the document hash and the encrypted CID."
+    },
+    {
+      "id": "register-qr",
+      "group": "register",
+      "route": "/register",
+      "anchor": ".qr-panel",
+      "placement": "right",
+      "requiresAuth": true,
+      "title": "The QR code",
+      "body": "Scanning it opens the public verification page for that exact parcel. It is the handoff from registrar to citizen."
+    },
+    {
+      "id": "records-search",
+      "group": "records",
+      "route": "/records",
+      "anchor": ".search-wrap",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "Search",
+      "body": "One box across Land ID, record ID, survey number, village and owner name."
+    },
+    {
+      "id": "records-toggle",
+      "group": "records",
+      "route": "/records",
+      "anchor": ".toggle",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "Current records only",
+      "body": "Off shows the full history of every parcel. On shows only the head of each chain."
+    },
+    {
+      "id": "records-table",
+      "group": "records",
+      "route": "/records",
+      "anchor": ".cert-table",
+      "placement": "bottom",
+      "requiresAuth": true,
+      "title": "The registry table",
+      "body": "Land ID, record, owner, location, document, status. Every row is cross-checkable against the contract."
+    },
+    {
+      "id": "records-status",
+      "group": "records",
+      "route": "/records",
+      "anchor": ".cert-table tbody tr:first-child .badge",
+      "placement": "left",
+      "requiresAuth": true,
+      "title": "Status",
+      "body": "ACTIVE or REVOKED. Revocation is recorded on-chain; the record stays visible forever."
+    },
+    {
+      "id": "records-action-verify",
+      "group": "records",
+      "route": "/records",
+      "anchor": "[data-tour='action-verify']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Verify",
+      "body": "Opens the public verification page for that parcel."
+    },
+    {
+      "id": "records-action-deed",
+      "group": "records",
+      "route": "/records",
+      "anchor": "[data-tour='action-deed']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Open the original",
+      "body": "Decrypts the stored PDF for this registrar and opens it. The hash is checked against the chain on the way out."
+    },
+    {
+      "id": "records-action-qr",
+      "group": "records",
+      "route": "/records",
+      "anchor": "[data-tour='action-qr']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Download QR",
+      "body": "The same QR the citizen would scan."
+    },
+    {
+      "id": "records-action-revoke",
+      "group": "records",
+      "route": "/records",
+      "anchor": "[data-tour='action-revoke']",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Revoke",
+      "body": "Permanently marks the record revoked on-chain. It requires a written reason, which is recorded on the ledger."
+    },
+    {
+      "id": "records-pagination",
+      "group": "records",
+      "route": "/records",
+      "anchor": ".pagination",
+      "placement": "top",
+      "requiresAuth": true,
+      "title": "Paging",
+      "body": "Server-side paging, so the registry stays responsive with thousands of records."
+    },
+    {
+      "id": "verify-input",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".verify-card",
+      "placement": "bottom",
+      "title": "Enter a Land ID",
+      "body": "The only field on the public page. A Land ID is in the QR code on the deed itself, so a citizen can check their own parcel without asking anyone."
+    },
+    {
+      "id": "verify-verdict",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".status-banner",
+      "placement": "bottom",
+      "title": "The verdict",
+      "body": "REGISTERED LAND RECORD only appears when the database and the contract agree. A revoked record says so; an unknown ID says so."
+    },
+    {
+      "id": "verify-summary",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".land-summary",
+      "placement": "bottom",
+      "title": "The parcel",
+      "body": "Location, jurisdiction code, current record and current owner ID. Owner names are deliberately not published."
+    },
+    {
+      "id": "verify-qr",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".land-summary-qr",
+      "placement": "left",
+      "title": "The parcel's QR",
+      "body": "The public face of the parcel, rendered on demand by the API."
+    },
+    {
+      "id": "verify-timeline",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".timeline",
+      "placement": "left",
+      "title": "Ownership history",
+      "body": "Every transfer, newest first, with the owner ID it moved to and the owner ID it moved from."
+    },
+    {
+      "id": "verify-chain-check",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".chain-check",
+      "placement": "left",
+      "title": "On-chain match",
+      "body": "The record was re-read from the contract just now and matches the database. This check runs on every visit, not on a cached copy."
+    },
+    {
+      "id": "verify-hashes",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".timeline-hashes",
+      "placement": "left",
+      "title": "Proof data",
+      "body": "The document hash, the previous-record hash, the encrypted CID and the moment of registration."
+    },
+    {
+      "id": "verify-view-doc",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".doc-modal, .timeline-actions",
+      "placement": "left",
+      "title": "View the original",
+      "body": "For a registrar, the decrypted PDF opens in a modal. The public sees a locked state unless the policy is set to public."
+    },
+    {
+      "id": "verify-dropzone",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".dropzone-compact",
+      "placement": "top",
+      "title": "Check a deed PDF",
+      "body": "Anyone can drop their own copy of a deed. It is hashed and compared with the registered versions — and never stored."
+    },
+    {
+      "id": "verify-disclaimer",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".disclaimer",
+      "placement": "top",
+      "title": "What a match proves",
+      "body": "A matching hash proves the file is the one that was registered. It does not by itself prove legal ownership or the validity of the transaction."
+    }
+  ]
+}

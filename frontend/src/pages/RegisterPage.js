@@ -4,7 +4,8 @@ import {
   FileUp, FileText, ScanText, Landmark, Link2, MapPin, Users, Ruler,
   ScrollText, Download, ExternalLink, RotateCcw, CircleCheck, Sparkles,
 } from "lucide-react";
-import { extractDeed, previewLand, registerDeed, apiErrorMessage } from "../utils/api";
+import { extractDeed, previewLand, registerDeed, apiErrorMessage, landQrUrl } from "../utils/api";
+import { FIXTURE } from "../components/tour/tourSteps";
 import Layout from "../components/Layout";
 
 const TX_EXPLORER_URL = process.env.REACT_APP_TX_EXPLORER_URL || "https://amoy.polygonscan.com/tx";
@@ -21,6 +22,19 @@ const EMPTY_FORM = {
 const DOC_TYPES = ["Sale Deed", "Gift Deed", "Settlement Deed", "Partition Deed", "Release Deed", "Will", "Other"];
 const AREA_UNITS = ["acres", "hectares", "cents", "guntha", "sq.ft", "sq.m"];
 const REGISTER_STEPS = ["Encrypting the deed", "Pinning to IPFS", "Writing the record to Polygon", "Saving and generating QR"];
+
+// The parcel the walkthrough previews — it really exists in the registry.
+const FIXTURE_PREVIEW = {
+  landId: FIXTURE.landId,
+  exists: true,
+  recordCount: 1,
+  head: {
+    recordId: FIXTURE.recordId,
+    currentOwnerId: FIXTURE.currentOwnerId,
+    currentOwnerName: null,
+    status: "active",
+  },
+};
 
 function Loader({ title, subtitle, file }) {
   return (
@@ -39,6 +53,65 @@ function Loader({ title, subtitle, file }) {
   );
 }
 
+/** A form section heading. Shared by the real form and the walkthrough preview. */
+function SectionTitle({ icon: Icon, label, tourKey }) {
+  return (
+    <h3 className="form-section-title" data-tour={tourKey}>
+      <Icon size={16} {...ICON} /> {label}
+    </h3>
+  );
+}
+
+/**
+ * The Land ID panel. Shows either a brand new parcel or the parcel the deed is
+ * being linked to, with the previous owner carried over.
+ */
+function LandIdPanel({ linking, preview, previewError, override, onOverride }) {
+  return (
+    <div className={`land-id-panel ${linking ? "is-linked" : ""}`}>
+      <div className="land-id-main">
+        <span className="land-id-label">Land ID</span>
+        <span className="land-id-value">{preview?.landId || "LAND-··········"}</span>
+        <span className="land-id-sub">
+          {previewError
+            ? previewError
+            : !preview
+              ? "Enter state, district and survey number to derive the Land ID"
+              : linking
+                ? <><Link2 size={13} {...ICON} /> Existing parcel. This deed links to {preview.head.recordId} ({preview.recordCount} record{preview.recordCount === 1 ? "" : "s"})</>
+                : "New parcel. This will be the first record."}
+        </span>
+        {linking && (
+          <span className="land-id-sub">
+            Previous owner is taken from the current record: <strong>{preview.head.currentOwnerName || preview.head.currentOwnerId}</strong>
+            {preview.head.status === "revoked" && " (current record is revoked, so the owner before it is used)"}
+          </span>
+        )}
+      </div>
+      <div className="field land-id-override">
+        <label>Link to existing Land ID</label>
+        <input
+          type="text"
+          value={override}
+          onChange={onOverride}
+          placeholder="Optional, e.g. LAND-23D407E005"
+          readOnly={!onOverride}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** A read-only field used by the walkthrough preview. */
+function PreviewField({ label, value }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <input type="text" value={value} readOnly />
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const [uiState, setUiState] = useState("upload"); // upload | extracting | form | registering | done
   const [file, setFile] = useState(null);
@@ -50,6 +123,18 @@ export default function RegisterPage() {
   const [result, setResult] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const previewSeq = useRef(0);
+
+  // ── Walkthrough preview mode ───────────────────────────
+  // The walkthrough has to point at the form, the linked-parcel panel and the
+  // receipt without uploading a PDF or registering anything, so the page can
+  // be put into a read-only preview instead.
+  const [tourMode, setTourMode] = useState(null); // null | default | linked | receipt
+
+  useEffect(() => {
+    const onMode = (event) => setTourMode(event.detail?.mode ?? null);
+    window.addEventListener("nosih:tour-register-mode", onMode);
+    return () => window.removeEventListener("nosih:tour-register-mode", onMode);
+  }, []);
 
   // ── Drop → AI extraction ──────────────────────────────
   const onDrop = useCallback(async (accepted) => {
@@ -175,24 +260,130 @@ export default function RegisterPage() {
 
   const linking = preview?.exists;
 
+  // ── The dropzone, shared by the real flow and the preview ──
+  const dropzone = (
+    <div {...getRootProps()} className={`dropzone ${isDragActive ? "active" : ""}`}>
+      <input {...getInputProps()} />
+      <p>{isDragActive ? "Drop the deed here…" : "Drag & drop the registered deed PDF, or click to browse"}</p>
+      <small className="dropzone-hint">
+        <ScanText size={14} {...ICON} />
+        AI pre-fills survey, boundary and registration details
+      </small>
+      <small className="dropzone-hint">PDF only, max 15 MB. The file is encrypted before it leaves the server.</small>
+    </div>
+  );
+
+  // ── Walkthrough preview of the form ────────────────────
+  const tourForm = (
+    <>
+      <LandIdPanel
+        linking={tourMode === "linked"}
+        preview={tourMode === "linked" ? FIXTURE_PREVIEW : null}
+        previewError=""
+        override=""
+        onOverride={undefined}
+      />
+
+      <SectionTitle icon={Users} label="Parties" tourKey="section-parties" />
+      <div className="form-grid">
+        <PreviewField label="Buyer / new owner" value="As printed on the deed" />
+        <PreviewField label="Buyer government ID ref" value="Optional — stored as a keyed hash" />
+      </div>
+
+      <SectionTitle icon={MapPin} label="Location" tourKey="section-location" />
+      <div className="form-grid">
+        <PreviewField label="State" value="Maharashtra" />
+        <PreviewField label="District" value="Mumbai Suburban" />
+        <PreviewField label="Taluk" value="Andheri" />
+        <PreviewField label="Village" value="Malibu Nagar" />
+        <PreviewField label="Survey number" value="1963" />
+        <PreviewField label="Subdivision" value="A" />
+      </div>
+
+      <SectionTitle icon={Ruler} label="Land details" tourKey="section-details" />
+      <div className="form-grid">
+        <PreviewField label="Area" value="0.0450" />
+        <PreviewField label="Area unit" value="acres" />
+        <PreviewField label="North boundary" value="—" />
+        <PreviewField label="South boundary" value="—" />
+        <PreviewField label="East boundary" value="—" />
+        <PreviewField label="West boundary" value="—" />
+      </div>
+
+      <SectionTitle icon={Landmark} label="Registration" tourKey="section-registration" />
+      <div className="form-grid">
+        <PreviewField label="Document type" value="Sale Deed" />
+        <PreviewField label="Registration number" value="1234/2026" />
+        <PreviewField label="Registration date" value="2026-11-01" />
+        <PreviewField label="Sub-Registrar office" value="Andheri (SRO-04), Mumbai" />
+      </div>
+
+      <p className="privacy-note">
+        Only hashes, the encrypted file's CID and owner registry IDs are written on-chain. Names, survey numbers and boundaries stay in the access-controlled database.
+      </p>
+    </>
+  );
+
+  // ── Walkthrough preview of the receipt ─────────────────
+  const tourReceipt = (
+    <div className="register-done">
+      <div className="register-done-head">
+        <CircleCheck size={22} {...ICON} />
+        <div>
+          <h3>Deed registered</h3>
+          <p>First record for this parcel</p>
+        </div>
+      </div>
+
+      <div className="register-done-body">
+        <div className="qr-panel">
+          <img src={landQrUrl(FIXTURE.landId)} alt={`QR code for ${FIXTURE.landId}`} width={220} />
+          <a href={landQrUrl(FIXTURE.landId)} download={`${FIXTURE.landId}-QR.png`} className="btn btn-secondary btn-sm">
+            <Download size={14} {...ICON} /> Download QR
+          </a>
+        </div>
+
+        <table className="details-table">
+          <tbody>
+            <tr><td>Land ID</td><td><code className="strong-code">{FIXTURE.landId}</code></td></tr>
+            <tr><td>Record ID</td><td><code>{FIXTURE.recordId}</code></td></tr>
+            <tr><td>Current owner ID</td><td><code>{FIXTURE.currentOwnerId}</code></td></tr>
+            <tr><td>Previous owner ID</td><td><code>{FIXTURE.previousOwnerId}</code></td></tr>
+            <tr>
+              <td>Transaction</td>
+              <td>
+                <a href={`${TX_EXPLORER_URL}/${FIXTURE.txHash}`} target="_blank" rel="noreferrer" className="inline-link">
+                  {FIXTURE.txHash.slice(0, 18)}… <ExternalLink size={13} {...ICON} />
+                </a>
+              </td>
+            </tr>
+            <tr><td>Document hash</td><td className="mono hash-cell">{FIXTURE.documentHash}</td></tr>
+            <tr><td>Encrypted CID</td><td className="mono hash-cell">{FIXTURE.ipfsCID}</td></tr>
+            <tr><td>Registered</td><td>1 November 2026</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <Layout title="Register Deed">
       <div className="card">
+        {tourMode ? (
+          <>
+            {tourMode === "default" && dropzone}
+            {tourMode !== "receipt" && tourForm}
+            {tourMode === "receipt" && tourReceipt}
+          </>
+        ) : (
+          <>
         {uiState === "upload" && (
           <>
             <h2 className="section-title section-title-icon">
               <FileUp size={20} {...ICON} />
               New Land Deed
             </h2>
-            <div {...getRootProps()} className={`dropzone ${isDragActive ? "active" : ""}`}>
-              <input {...getInputProps()} />
-              <p>{isDragActive ? "Drop the deed here…" : "Drag & drop the registered deed PDF, or click to browse"}</p>
-              <small className="dropzone-hint">
-                <ScanText size={14} {...ICON} />
-                AI pre-fills survey, boundary and registration details
-              </small>
-              <small className="dropzone-hint">PDF only, max 15 MB. The file is encrypted before it leaves the server.</small>
-            </div>
+            {dropzone}
             {fileRejections.length > 0 && <div className="alert alert-error">Only a single PDF up to 15 MB is accepted.</div>}
           </>
         )}
@@ -232,33 +423,15 @@ export default function RegisterPage() {
             )}
 
             {/* Land ID panel */}
-            <div className={`land-id-panel ${linking ? "is-linked" : ""}`}>
-              <div className="land-id-main">
-                <span className="land-id-label">Land ID</span>
-                <span className="land-id-value">{preview?.landId || "LAND-··········"}</span>
-                <span className="land-id-sub">
-                  {previewError
-                    ? previewError
-                    : !preview
-                      ? "Enter state, district and survey number to derive the Land ID"
-                      : linking
-                        ? <><Link2 size={13} {...ICON} /> Existing parcel. This deed links to {preview.head.recordId} ({preview.recordCount} record{preview.recordCount === 1 ? "" : "s"})</>
-                        : "New parcel. This will be the first record."}
-                </span>
-                {linking && (
-                  <span className="land-id-sub">
-                    Previous owner is taken from the current record: <strong>{preview.head.currentOwnerName || preview.head.currentOwnerId}</strong>
-                    {preview.head.status === "revoked" && " (current record is revoked, so the owner before it is used)"}
-                  </span>
-                )}
-              </div>
-              <div className="field land-id-override">
-                <label>Link to existing Land ID</label>
-                <input type="text" value={form.landIdOverride} onChange={set("landIdOverride")} placeholder="Optional, e.g. LAND-23D407E005" />
-              </div>
-            </div>
+            <LandIdPanel
+              linking={linking}
+              preview={preview}
+              previewError={previewError}
+              override={form.landIdOverride}
+              onOverride={set("landIdOverride")}
+            />
 
-            <h3 className="form-section-title"><Users size={16} {...ICON} /> Parties</h3>
+            <SectionTitle icon={Users} label="Parties" tourKey="section-parties" />
             <div className="form-grid">
               {field("Buyer / new owner", "buyerName", { required: true, placeholder: "Full name as on the deed" })}
               {field("Buyer government ID ref", "buyerGovId", { placeholder: "Optional, stored only as a keyed hash" })}
@@ -266,7 +439,7 @@ export default function RegisterPage() {
               {!linking && field("Seller government ID ref", "sellerGovId", { placeholder: "Optional" })}
             </div>
 
-            <h3 className="form-section-title"><MapPin size={16} {...ICON} /> Location</h3>
+            <SectionTitle icon={MapPin} label="Location" tourKey="section-location" />
             <div className="form-grid">
               {field("State", "state", { required: true, placeholder: "Tamil Nadu" })}
               {field("District", "district", { required: true, placeholder: "Chennai" })}
@@ -276,7 +449,7 @@ export default function RegisterPage() {
               {field("Subdivision", "subdivisionNumber", { placeholder: "A" })}
             </div>
 
-            <h3 className="form-section-title"><Ruler size={16} {...ICON} /> Land details</h3>
+            <SectionTitle icon={Ruler} label="Land details" tourKey="section-details" />
             <div className="form-grid">
               {field("Area", "area", { placeholder: "2.45" })}
               {select("Area unit", "areaUnit", AREA_UNITS)}
@@ -286,7 +459,7 @@ export default function RegisterPage() {
               {field("West boundary", "boundaryWest")}
             </div>
 
-            <h3 className="form-section-title"><Landmark size={16} {...ICON} /> Registration</h3>
+            <SectionTitle icon={Landmark} label="Registration" tourKey="section-registration" />
             <div className="form-grid">
               {select("Document type", "documentType", DOC_TYPES)}
               {field("Registration number", "registrationNumber", { placeholder: "1234/2026" })}
@@ -359,6 +532,8 @@ export default function RegisterPage() {
               </button>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </Layout>
