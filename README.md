@@ -749,6 +749,8 @@ All of it lives in one folder — `frontend/src/components/tour/`:
 
 - **39 steps** across five surfaces: sign-in (4), dashboard (7), register a deed (9), records (9), public verification (10).
 - **A spotlight, not a screenshot.** One fixed rectangle is moved onto the anchor element and darkened with an oversized `box-shadow`. The hole is `pointer-events: none`, so the page underneath stays usable.
+- **Nothing blinks.** The hole travels from one element to the next instead of fading out and back in: it holds position while the page navigates and scrolls, then glides to the new anchor over 480 ms. The card never disappears either — its copy rises into place and the card glides after the hole. One easing curve (`--tour-ease`) governs every movement.
+- **The last step is the deed.** Step 39 opens the registered document: the encrypted file is fetched from IPFS, decrypted on the server, and its hash compared with the one recorded on the blockchain. Leaving the tour — Finish, Skip or Esc — closes it again.
 - **The anchor is the contract.** Each step names a CSS selector; the engine waits for that element to exist and to have a non-zero size before it shows the card. The `resize` and `scroll` listeners keep the hole glued while the page moves.
 - **Read-only by construction.** Nothing in the tour registers a deed, revokes a record, or writes to the chain. The register steps drive a read-only preview of the form, and the receipt step renders from a parcel that already exists.
 - **The sign-in gate.** The four opening steps are public. When the tour reaches the registrar side it shows a "Sign in to continue" card rather than filtering steps out, so nothing is skipped and there is no redirect loop. Signing in resumes the tour at the step it paused on.
@@ -840,7 +842,9 @@ NOSIH-secure/
 │   │   ├── landIdentity.js         Normalisation, hashing, encryption, IDs
 │   │   └── qr.js                   Verify URL and labelled QR PNG
 │   ├── scripts/
-│   │   └── seedAdmin.js            Create or reset the admin user
+│   │   ├── seedAdmin.js            Create or reset the admin user
+│   │   ├── checkPdfRender.js       Proves both PDF.js paths work (the deploy check)
+│   │   └── makeScannedDeed.js      Builds a scanned-style deed PDF for testing
 │   └── supabase/
 │       └── schema.sql              Tables, constraints, indexes, triggers, RLS
 ├── frontend/
@@ -1135,6 +1139,7 @@ Current result: **PASS**. It proves the 39-step catalogue is well formed, that e
 2. Sign in at `/login`; a token appears in `sessionStorage`.
 3. Dashboard loads stats and recent records.
 4. `/register`: upload a PDF; fields are pre-filled or a manual-entry notice appears; the Land ID preview resolves.
+   For a scanned deed with no text layer, `npm run check:pdf` must pass first — it is the same PDF.js path the deployment failed on.
 5. Register the deed; the result shows a transaction hash, CID, and QR.
 6. Open `/verify?landId=…`; the timeline shows an on-chain match for every record.
 7. Upload the same PDF to the comparison dropzone; the verdict says it matches the current version.
@@ -1155,6 +1160,21 @@ The repository is a single Vercel project using **Services**. `vercel.json` decl
 - `web`: `frontend/`, CRA framework, build output `build/`, all routes rewritten to `index.html`.
 - `api`: `backend/`, Express framework.
 - Top-level rewrites: `/api/*` → the API service; everything else → the web service.
+
+### The PDF.js worker
+
+Deployed extraction of a scanned deed failed with `Setting up fake worker failed`. PDF.js imports its worker module with a bundler-ignore hint, so Vercel's file tracer never packaged it, and the function had no worker to start.
+
+Two things fix it, and both are in the repository:
+
+- **`backend/package.json` pins `pdfjs-dist` and overrides every dependent to that one version.** `pdf-parse` bundles its own copy of PDF.js and refuses a worker from a different version, so the versions have to match — a second copy of `pdfjs-dist` under `pdf-to-png-converter` is what caused the mismatch.
+- **`backend/services/ai.js` imports the worker by name.** The import exists only so the tracer follows it and packages the file next to the PDF.js module that looks for it. The worker is never handed to PDF.js by hand, for the reason above.
+
+`npm run check:pdf` proves both paths still work: it renders a page to an image and reads a text layer, and it fails with exit 1 if the worker file is missing.
+
+```bash
+npm run check:pdf
+```
 
 ### Steps
 

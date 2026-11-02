@@ -40,13 +40,36 @@ bundler, and the root `package.json` has no `"type": "module"`, so Node cannot
 - The **welcome modal appeared over a deep-linked tour**. The deep-link effect
   now writes the decision itself and suppresses the welcome prompt.
 
+**The motion was reworked afterwards.** The first version faded the spotlight
+and the card out and back in on every step change, which read as a blink. Now
+the hole holds its position while the page navigates and scrolls, then travels
+to the new anchor over 480 ms, and the card's copy rises into place while the
+card glides after it. One easing curve drives every movement.
+
+That rework exposed three placement bugs that the blinking version had hidden:
+
+- The **smooth scroll had not finished** when the spotlight was placed, so the
+  hole landed on stale coordinates. The scroll is now awaited — `scrollend` when
+  the browser offers it, a settle poll otherwise.
+- **Late images and data reflow the page.** The verify page grows when its QR
+  loads, which pushed the anchor off screen. The spotlight now observes the
+  document body and follows, and the tour waits for the layout to settle after
+  a step hook changes the page.
+- The **deed modal outlived the tour** when the document was still being
+  fetched. Finishing, skipping or pressing Esc now closes it, even if it
+  arrives after the cleanup ran.
+
+**The last step is now the deed.** "View the original" moved to step 39: the
+encrypted file is fetched from IPFS, decrypted on the server, and its hash
+compared with the one recorded on the blockchain.
+
 **Verified.** All 39 anchors resolve in order with no counter jumps; the
-spotlight's inline geometry matches the anchor box to within 0.6 px on every
-step; the document modal opens and closes through the before/after hooks; the
-gate signs in and resumes at step 5; the skip path fills the demo credentials
-and they sign in against the real backend; the tour ends with the overlay and
-card removed. Bundle cost: JS 100.41 kB → 108.79 kB gzipped (+8.4 kB), CSS
-5.51 kB → 6.63 kB.
+spotlight's inline geometry matches the anchor box exactly on every step
+(zero drift); the document modal opens and closes through the before/after
+hooks; the gate signs in and resumes at step 5; the skip path fills the demo
+credentials and they sign in against the real backend; the tour ends with the
+overlay, the card and the modal removed. Bundle cost: JS 100.41 kB → 109.5 kB
+gzipped (+9.1 kB), CSS 5.51 kB → 6.83 kB.
 
 **Not done.** The tour work is committed locally and **not pushed**, on
 instruction. The demo credentials in `demoCredentials.js` are in the public

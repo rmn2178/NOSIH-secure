@@ -31,6 +31,32 @@ function getSharp() {
   return sharpPromise;
 }
 
+/**
+ * PDF.js needs its worker module before it can read a PDF.
+ *
+ * PDF.js imports the worker itself with a bundler-ignore hint, so the file
+ * is left out of a serverless deployment — the failure reads "Setting up
+ * fake worker failed" and a scanned deed cannot be extracted. Importing it
+ * here gives the file tracer a literal specifier to follow, so the worker is
+ * packaged next to the PDF.js module that looks for it.
+ *
+ * The import is the whole point: the worker must not be handed to PDF.js by
+ * hand. pdf-parse bundles its own copy of PDF.js, and a worker from a
+ * different version is refused with "The API version does not match the
+ * Worker version".
+ */
+let pdfWorkerPromise = null;
+function primePdfWorker() {
+  if (!pdfWorkerPromise) {
+    pdfWorkerPromise = import("pdfjs-dist/legacy/build/pdf.worker.mjs").catch((err) => {
+      // PDF.js falls back to resolving the worker next to its own module,
+      // which works whenever that file was packaged.
+      console.warn("[ai] PDF.js worker could not be preloaded:", err.message);
+    });
+  }
+  return pdfWorkerPromise;
+}
+
 const require = createRequire(import.meta.url);
 
 // pdf-parse v2+ exports a class. Loaded on first use for the same reason as
@@ -102,6 +128,9 @@ const RULES = `Rules:
 /** Public entry point. */
 export async function extractDeedMetadata(filePath, originalname = "deed.pdf") {
   console.log(`\n[extractDeedMetadata] ${originalname}`);
+
+  // PDF.js cannot read anything until its worker is in place.
+  await primePdfWorker();
 
   const text = await tryPdfTextLayer(filePath);
   if (text) {

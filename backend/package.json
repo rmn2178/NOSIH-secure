@@ -27,9 +27,13 @@
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^2.4.5",
     "pdf-to-png-converter": "^3.11.0",
+    "pdfjs-dist": "5.4.296",
     "qrcode": "^1.5.3",
     "sharp": "^0.35.2",
     "uuid": "^9.0.0"
+  },
+  "overrides": {
+    "pdfjs-dist": "$pdfjs-dist"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
