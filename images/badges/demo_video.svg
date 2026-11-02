@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="243" height="28" viewBox="0 0 243 28" role="img" aria-label="DEMO VIDEO: Watch Walkthrough">
+  <title>DEMO VIDEO: Watch Walkthrough</title>
+  <rect width="243" height="28" rx="6" fill="#292929"/>
+  <path d="M6,0 H111 V28 H6 Q0,28 0,22 V6 Q0,0 6,0 Z" fill="#555555"/>
+  <path transform="translate(7,7) scale(0.6250)" fill="#ffffff" d="M8 5v14l11-7z"/>
+  <text x="27" y="18" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="11" font-weight="bold" textLength="74" lengthAdjust="spacingAndGlyphs">DEMO VIDEO</text>
+  <text x="121" y="18" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="11" font-weight="bold" textLength="112" lengthAdjust="spacingAndGlyphs">Watch Walkthrough</text>
+</svg>

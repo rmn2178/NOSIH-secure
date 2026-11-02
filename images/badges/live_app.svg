@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="222" height="28" viewBox="0 0 222 28" role="img" aria-label="LIVE APP: nosih.vercel.app">
+  <title>LIVE APP: nosih.vercel.app</title>
+  <rect width="222" height="28" rx="6" fill="#000000"/>
+  <path d="M6,0 H96 V28 H6 Q0,28 0,22 V6 Q0,0 6,0 Z" fill="#555555"/>
+  <path transform="translate(7,7) scale(0.6250)" fill="#ffffff" d="M12 0l12 21H0z"/>
+  <text x="27" y="18" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="11" font-weight="bold" textLength="59" lengthAdjust="spacingAndGlyphs">LIVE APP</text>
+  <text x="106" y="18" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="11" font-weight="bold" textLength="106" lengthAdjust="spacingAndGlyphs">nosih.vercel.app</text>
+</svg>

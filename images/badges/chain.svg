@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="325" height="20" viewBox="0 0 325 20" role="img" aria-label="Chain: Polygon Amoy (80002) → Hyperledger Besu QBFT">
+  <title>Chain: Polygon Amoy (80002) → Hyperledger Besu QBFT</title>
+  <rect width="325" height="20" rx="0" fill="#000000"/>
+  <path d="M0,0 H49 V20 H0 Q0,20 0,20 V0 Q0,0 0,0 Z" fill="#555555"/>
+  
+  <text x="8" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="33" lengthAdjust="spacingAndGlyphs">Chain</text>
+  <text x="57" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="260" lengthAdjust="spacingAndGlyphs">Polygon Amoy (80002) → Hyperledger Besu QBFT</text>
+</svg>

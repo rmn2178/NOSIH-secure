@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="274" height="20" viewBox="0 0 274 20" role="img" aria-label="Contract: Solidity 0.8.20 · OpenZeppelin 5">
+  <title>Contract: Solidity 0.8.20 · OpenZeppelin 5</title>
+  <rect width="274" height="20" rx="0" fill="#181818"/>
+  <path d="M0,0 H69 V20 H0 Q0,20 0,20 V0 Q0,0 0,0 Z" fill="#555555"/>
+  
+  <text x="8" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="53" lengthAdjust="spacingAndGlyphs">Contract</text>
+  <text x="77" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="189" lengthAdjust="spacingAndGlyphs">Solidity 0.8.20 · OpenZeppelin 5</text>
+</svg>
