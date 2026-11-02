@@ -77,3 +77,4 @@ export async function getEncryptedDeed(row) {
     sourceUrl: file.sourceUrl,
   };
 }
+
