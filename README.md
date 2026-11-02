@@ -8,19 +8,19 @@
 ![NOSIH Animated Hero Banner](images/banner_animated.gif)
 
 <p align="center">
-  <a href="https://nosih.vercel.app/"><img src="https://img.shields.io/badge/LIVE_APP-nosih.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live App" /></a>
-  <a href="https://nosih.vercel.app/verify"><img src="https://img.shields.io/badge/PUBLIC_VERIFIER-%2Fverify-141414?style=for-the-badge&logo=shield&logoColor=white" alt="Public Verifier" /></a>
-  <a href="https://nosih.vercel.app/?tour=1"><img src="https://img.shields.io/badge/INTERACTIVE_TOUR-39_Live_Steps-1f1f1f?style=for-the-badge" alt="Interactive Tour" /></a>
-  <a href="https://drive.google.com/file/d/1jp7FEVKXu8S2MwqNtEMDJ35LX2ekIyCh/view?usp=sharing"><img src="https://img.shields.io/badge/DEMO_VIDEO-Watch_Walkthrough-292929?style=for-the-badge&logo=googledrive&logoColor=white" alt="Demo Video" /></a>
-  <a href="https://drive.google.com/file/d/1UyaNBlv8j-pSKhNhhs9AYK9zYTdnVzLp/view?usp=sharing"><img src="https://img.shields.io/badge/RESEARCH-100_Cited_India_Cases-333333?style=for-the-badge" alt="100 Cited Cases" /></a>
+  <a href="https://nosih.vercel.app/"><img src="images/badges/live_app.svg" alt="Live App" /></a>
+  <a href="https://nosih.vercel.app/verify"><img src="images/badges/public_verifier.svg" alt="Public Verifier" /></a>
+  <a href="https://nosih.vercel.app/?tour=1"><img src="images/badges/interactive_tour.svg" alt="Interactive Tour" /></a>
+  <a href="https://drive.google.com/file/d/1jp7FEVKXu8S2MwqNtEMDJ35LX2ekIyCh/view?usp=sharing"><img src="images/badges/demo_video.svg" alt="Demo Video" /></a>
+  <a href="https://drive.google.com/file/d/1UyaNBlv8j-pSKhNhhs9AYK9zYTdnVzLp/view?usp=sharing"><img src="images/badges/research.svg" alt="100 Cited Cases" /></a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Chain-Polygon_Amoy_(80002)_%E2%86%92_Hyperledger_Besu_QBFT-000000?style=flat-square" alt="Chain" />
-  <img src="https://img.shields.io/badge/Contract-Solidity_0.8.20_%C2%B7_OpenZeppelin_5-181818?style=flat-square" alt="Solidity" />
-  <img src="https://img.shields.io/badge/Storage-AES--256--GCM_%2B_Pinata_IPFS_%2B_Supabase_RLS-262626?style=flat-square" alt="Storage" />
-  <img src="https://img.shields.io/badge/AI_OCR-Gemini_3.6_Flash_(Text_%2B_Vision)-141414?style=flat-square" alt="Gemini" />
-  <img src="https://img.shields.io/badge/Verification-%3C_1.4_Seconds-000000?style=flat-square" alt="Speed" />
+  <img src="images/badges/chain.svg" alt="Chain" />
+  <img src="images/badges/contract.svg" alt="Solidity" />
+  <img src="images/badges/storage.svg" alt="Storage" />
+  <img src="images/badges/ai_ocr.svg" alt="Gemini" />
+  <img src="images/badges/verification.svg" alt="Speed" />
 </p>
 
 </div>
