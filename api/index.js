@@ -5,8 +5,7 @@
  * All API routes are handled through this single function.
  */
 
-// Import the Express app
 import app from "../backend/server.js";
 
-// Export as Vercel serverless function
+// Vercel expects this specific export format
 export default app;
