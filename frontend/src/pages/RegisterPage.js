@@ -138,33 +138,62 @@ export default function RegisterPage() {
     return () => window.removeEventListener("nosih:tour-register-mode", onMode);
   }, []);
 
-  // ── Drop → AI extraction ──────────────────────────────
+  // ── Drop → AI extraction (Progressive) ────────────────
   const onDrop = useCallback(async (accepted) => {
     const dropped = accepted[0];
     if (!dropped) return;
     setFile(dropped);
     setError("");
     setResult(null);
-    setUiState("extracting");
+    
+    // ✅ Show form immediately for progressive population
+    setUiState("form");
+    setExtractNote({ type: "info", text: "Analyzing document..." });
 
     try {
       const fd = new FormData();
       fd.append("deed", dropped);
+      
+      // Start extraction
       const { data: res } = await extractDeed(fd);
+      
       if (res.data) {
+        // Animate field updates progressively
         setForm((prev) => {
           const next = { ...prev };
-          for (const [k, v] of Object.entries(res.data)) if (v && k in next) next[k] = String(v);
+          const updatedFields = [];
+          
+          for (const [k, v] of Object.entries(res.data)) {
+            if (v && k in next && next[k] !== String(v)) {
+              next[k] = String(v);
+              updatedFields.push(k);
+            }
+          }
+          
+          // Highlight updated fields with animation
+          updatedFields.forEach((field, idx) => {
+            setTimeout(() => {
+              const el = document.querySelector(`input[name="${field}"], select[name="${field}"]`);
+              if (el) {
+                el.classList.add('field-updated');
+                setTimeout(() => el.classList.remove('field-updated'), 1000);
+              }
+            }, idx * 50); // Stagger animations
+          });
+          
           return next;
         });
       }
+      
       setExtractNote(res.success
-        ? { type: "success", text: "Fields were pre-filled from the deed. Review every value before registering." }
-        : { type: "error", text: res.error || "Could not read the deed. Please fill the form manually." });
+        ? { type: "success", text: "✓ Fields extracted. Review every value before registering." }
+        : { type: "warning", text: res.error || "Partial extraction. Please verify all fields." });
     } catch (err) {
-      setExtractNote({ type: "error", text: apiErrorMessage(err, "AI service unavailable. Please fill the form manually.") });
+      setExtractNote({ 
+        type: "error", 
+        text: apiErrorMessage(err, "Extraction failed. Fill manually or try another PDF.") 
+      });
     }
-    setUiState("form");
   }, []);
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
@@ -245,14 +274,14 @@ export default function RegisterPage() {
   const field = (label, key, { type = "text", placeholder = "", required = false, full = false } = {}) => (
     <div className={`field${full ? " field-full" : ""}`}>
       <label>{label}{required && <span className="req"> *</span>}</label>
-      <input type={type} value={form[key]} onChange={set(key)} placeholder={placeholder} required={required} />
+      <input type={type} name={key} value={form[key]} onChange={set(key)} placeholder={placeholder} required={required} />
     </div>
   );
 
   const select = (label, key, options) => (
     <div className="field">
       <label>{label}</label>
-      <select value={form[key]} onChange={set(key)}>
+      <select name={key} value={form[key]} onChange={set(key)}>
         <option value="">Select…</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
         {form[key] && !options.includes(form[key]) && <option value={form[key]}>{form[key]}</option>}

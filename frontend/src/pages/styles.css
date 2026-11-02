@@ -1533,3 +1533,256 @@ textarea:focus {
   border-radius: 4px;
   padding: 1px 5px;
 }
+
+
+/* ========================================
+   Progressive Extraction Animations
+   ======================================== */
+
+/* Field highlight animation when auto-filled */
+.field-updated input,
+.field-updated select {
+  animation: field-highlight 1s ease-out;
+}
+
+@keyframes field-highlight {
+  0% {
+    background-color: #fef3c7;
+    transform: scale(1);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+  }
+  50% {
+    background-color: #fde68a;
+    transform: scale(1.02);
+    box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.3);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+/* Enhanced extraction phase loader */
+.extract-phase {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 0.75rem;
+  margin: 2rem 0;
+}
+
+.extract-ring {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  margin: 0 auto 1.5rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.extract-phase h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.extract-phase p {
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+}
+
+.extract-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.extract-file svg {
+  color: #3b82f6;
+}
+
+/* Progress track with animated bar */
+.extract-track {
+  width: 100%;
+  max-width: 400px;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  margin: 1.5rem auto 0.75rem;
+  overflow: hidden;
+}
+
+.extract-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+  background-size: 200% 100%;
+  border-radius: 9999px;
+  animation: progress-flow 2s ease-in-out infinite;
+}
+
+@keyframes progress-flow {
+  0% { 
+    width: 0%; 
+    margin-left: 0%; 
+    background-position: 0% 0;
+  }
+  50% { 
+    width: 70%; 
+    margin-left: 15%; 
+    background-position: 100% 0;
+  }
+  100% { 
+    width: 0%; 
+    margin-left: 100%; 
+    background-position: 200% 0;
+  }
+}
+
+.extract-time {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Enhanced extract note with icons */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.alert svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.alert-info {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+}
+
+.alert-success,
+.alert-neutral {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+}
+
+.alert-warning {
+  background: #fef3c7;
+  border: 1px solid #fde047;
+  color: #92400e;
+}
+
+.alert-error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+
+/* Loading state for fields (optional future enhancement) */
+.field.loading input,
+.field.loading select {
+  background: linear-gradient(
+    90deg,
+    #f9fafb 25%,
+    #f3f4f6 50%,
+    #f9fafb 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Confidence indicators (optional future enhancement) */
+.confidence {
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.confidence-high {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.confidence-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.confidence-low {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Smooth transitions for all inputs */
+input, select, textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Enhanced dropzone with better feedback */
+.dropzone {
+  transition: all 0.3s ease-in-out;
+}
+
+.dropzone:hover {
+  border-color: #3b82f6;
+  background: #f0f9ff;
+}
+
+.dropzone.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  transform: scale(1.01);
+}
+
+.dropzone-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: color 0.2s ease-in-out;
+}
+
+.dropzone:hover .dropzone-hint {
+  color: #3b82f6;
+}

@@ -25,7 +25,7 @@ import path from "path";
 import Joi from "joi";
 import { protect } from "../middleware/auth.js";
 import { supabase, isUniqueViolation, landRecordFromRow } from "../supabase.js";
-import { extractDeedMetadata, isUsefulExtraction } from "../services/ai.js";
+import { extractDeedMetadata, extractDeedMetadataParallel, isUsefulExtraction } from "../services/ai.js";
 import { uploadToIPFS, fetchIPFSFile } from "../services/ipfs.js";
 import { registerRecordOnChain, revokeRecordOnChain } from "../services/blockchain.js";
 import { generateLandQr } from "../services/qr.js";
@@ -190,7 +190,12 @@ router.post("/extract", protect, upload.single("deed"), async (req, res) => {
     tmp = path.join(os.tmpdir(), `nosih-deed-${Date.now()}.pdf`);
     fs.writeFileSync(tmp, req.file.buffer);
 
-    const data = await extractDeedMetadata(tmp, req.file.originalname);
+    // Use parallel extraction for faster results
+    const useParallel = process.env.EXTRACTION_PARALLEL !== "false";
+    const extractFn = useParallel ? extractDeedMetadataParallel : extractDeedMetadata;
+    
+    const data = await extractFn(tmp, req.file.originalname);
+    
     if (!isUsefulExtraction(data)) {
       return res.json({ success: false, data, error: "Could not read enough fields from this deed. Please complete the form manually." });
     }
