@@ -4,8 +4,7 @@
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/build",
   "functions": {
-    "api/**/*.js": {
-      "runtime": "@vercel/node@3",
+    "api/index.js": {
       "includeFiles": "backend/**"
     }
   },
