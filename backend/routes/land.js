@@ -27,6 +27,7 @@ import { protect } from "../middleware/auth.js";
 import { supabase, isUniqueViolation, landRecordFromRow } from "../supabase.js";
 import { extractDeedMetadata, extractDeedMetadataParallel, isUsefulExtraction } from "../services/ai.js";
 import { uploadToIPFS, fetchIPFSFile } from "../services/ipfs.js";
+import { storeEncryptedDeed, getEncryptedDeed } from "../services/deedStorage.js";
 import { registerRecordOnChain, revokeRecordOnChain } from "../services/blockchain.js";
 import { generateLandQr } from "../services/qr.js";
 import {
@@ -290,6 +291,7 @@ router.post("/register", protect, upload.single("deed"), async (req, res) => {
 
     // 5. Encrypt then pin — the CID never exposes the plaintext deed
     const { ciphertext, iv, tag } = encryptDocument(pdf);
+    storeEncryptedDeed(recordId, ciphertext);
     const ipfsCID = await uploadToIPFS(ciphertext, `${recordId}.pdf.enc`, "application/octet-stream");
     console.log(`IPFS (encrypted) ${recordId}: ${ipfsCID}`);
 
@@ -485,7 +487,7 @@ router.get("/records/:recordId", protect, async (req, res) => {
 router.get("/records/:recordId/document", protect, async (req, res) => {
   try {
     const row = await getRecordRow(req.params.recordId);
-    const file = await fetchIPFSFile(row.ipfs_cid);
+    const file = await getEncryptedDeed(row);
     const pdf = decryptDocument(file.buffer, row.enc_iv, row.enc_tag);
     const intact = computeDocumentHash(pdf) === row.document_hash;
 

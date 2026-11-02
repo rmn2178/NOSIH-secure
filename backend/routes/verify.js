@@ -20,6 +20,7 @@ import { supabase } from "../supabase.js";
 import { getRecordFromChain } from "../services/blockchain.js";
 import { generateLandQr } from "../services/qr.js";
 import { fetchIPFSFile } from "../services/ipfs.js";
+import { getEncryptedDeed } from "../services/deedStorage.js";
 import { computeDocumentHash, decryptDocument, isLandId, isRecordId } from "../services/landIdentity.js";
 
 const router = Router();
@@ -202,7 +203,7 @@ router.get("/land/:landId/document", async (req, res) => {
       });
     }
 
-    const file = await fetchIPFSFile(row.ipfs_cid);
+    const file = await getEncryptedDeed(row);
     const pdf = decryptDocument(file.buffer, row.enc_iv, row.enc_tag);
     const intact = computeDocumentHash(pdf) === row.document_hash;
 
