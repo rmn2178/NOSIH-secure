@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { ExternalLink, FileText, QrCode, Ban, Search } from "lucide-react";
+import { FileText, QrCode, Ban, Search, ScanSearch } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { listLandRecords, revokeLandRecord, fetchDeedDocument, downloadLandQr, apiErrorMessage } from "../utils/api";
 import Layout from "../components/Layout";
 
@@ -15,6 +16,15 @@ export default function RecordsPage() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  /** Open the public timeline in this tab, without reloading the app. */
+  const openVerify = useCallback(
+    (landId) => {
+      navigate(`/verify?landId=${landId}`);
+    },
+    [navigate]
+  );
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -53,18 +63,16 @@ export default function RecordsPage() {
   }
 
   async function openDeed(rec) {
-    const win = window.open("", "_blank");
     setBusy(rec.recordId + ":doc");
     try {
       const res = await fetchDeedDocument(rec.recordId);
       const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
-      if (win) win.location.href = url;
-      else window.location.href = url;
+      // The deed opens in this tab, not a new one.
+      window.location.href = url;
       if (res.headers["x-document-hash-match"] === "false") {
         alert("Warning: the decrypted document does not match the registered hash.");
       }
     } catch (err) {
-      win?.close();
       let msg = "Could not open the deed";
       try { msg = apiErrorMessage({ response: { data: JSON.parse(await err.response.data.text()) } }, msg); } catch { /* blob body */ }
       alert(msg);
@@ -144,8 +152,21 @@ export default function RecordsPage() {
                     </td>
                     <td>
                       <div className="action-btns">
-                        <a href={`/verify?landId=${r.landId}`} className="btn btn-sm btn-secondary" target="_blank" rel="noreferrer" title="Public verify page" data-tour="action-verify">
-                          <ExternalLink {...ICON} /> Verify
+                        <a
+                          href={`/verify?landId=${r.landId}`}
+                          className="btn btn-sm btn-secondary"
+                          title="Public verify page"
+                          data-tour="action-verify"
+                          onClick={(e) => {
+                            // A plain left click stays in this tab and moves
+                            // through the router; a modified click still opens
+                            // a new tab the way the browser intends.
+                            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                            e.preventDefault();
+                            openVerify(r.landId);
+                          }}
+                        >
+                          <ScanSearch {...ICON} /> Verify
                         </a>
                         <button className="btn btn-sm btn-outline" onClick={() => openDeed(r)} disabled={busy === r.recordId + ":doc"} title="Decrypt and open the deed" data-tour="action-deed">
                           <FileText {...ICON} /> {busy === r.recordId + ":doc" ? "…" : "Deed"}

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
+import { useNavigate } from "react-router-dom";
 import {
   FileUp, FileText, ScanText, Landmark, Link2, MapPin, Users, Ruler,
   ScrollText, Download, ExternalLink, RotateCcw, CircleCheck, Sparkles,
@@ -113,6 +114,7 @@ function PreviewField({ label, value }) {
 }
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
   const [uiState, setUiState] = useState("upload"); // upload | extracting | form | registering | done
   const [file, setFile] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -524,7 +526,17 @@ export default function RegisterPage() {
             </div>
 
             <div className="verify-actions">
-              <a href={`/verify?landId=${result.landId}`} target="_blank" rel="noreferrer" className="btn btn-outline">
+              <a
+                href={`/verify?landId=${result.landId}`}
+                className="btn btn-outline"
+                onClick={(e) => {
+                  // A plain left click stays in this tab and moves through the
+                  // router; a modified click still opens a new tab.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  navigate(`/verify?landId=${result.landId}`);
+                }}
+              >
                 <ExternalLink size={15} {...ICON} /> Open verify page
               </a>
               <button type="button" className="btn btn-primary" onClick={startOver}>
