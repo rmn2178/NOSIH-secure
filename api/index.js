@@ -5,9 +5,6 @@
  * All API routes are handled through this single function.
  */
 
-// Load environment from root .env
-import "../backend/env.js";
-
 // Import the Express app
 import app from "../backend/server.js";
 
