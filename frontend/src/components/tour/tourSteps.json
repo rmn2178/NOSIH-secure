@@ -360,15 +360,6 @@
       "body": "The document hash, the previous-record hash, the encrypted CID and the moment of registration."
     },
     {
-      "id": "verify-view-doc",
-      "group": "verify",
-      "route": "/verify?landId=LAND-B5F024C626",
-      "anchor": ".doc-modal, .timeline-actions",
-      "placement": "left",
-      "title": "View the original",
-      "body": "For a registrar, the decrypted PDF opens in a modal. The public sees a locked state unless the policy is set to public."
-    },
-    {
       "id": "verify-dropzone",
       "group": "verify",
       "route": "/verify?landId=LAND-B5F024C626",
@@ -385,6 +376,15 @@
       "placement": "top",
       "title": "What a match proves",
       "body": "A matching hash proves the file is the one that was registered. It does not by itself prove legal ownership or the validity of the transaction."
+    },
+    {
+      "id": "verify-view-doc",
+      "group": "verify",
+      "route": "/verify?landId=LAND-B5F024C626",
+      "anchor": ".doc-modal, .timeline-actions",
+      "placement": "left",
+      "title": "View the original",
+      "body": "The encrypted file is fetched from IPFS and decrypted on the server, then its hash is compared with the one recorded on the blockchain. A match proves this is the very document that was registered."
     }
   ]
 }

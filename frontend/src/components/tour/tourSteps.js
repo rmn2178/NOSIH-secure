@@ -44,27 +44,59 @@ function openProofData() {
   if (details && !details.open) details.open = true;
 }
 
+/**
+ * True while the registered deed is being fetched.
+ *
+ * The server decrypts the document and pulls it back from IPFS, which takes
+ * a moment. If the tour ends in the meantime the modal arrives after the
+ * cleanup has already run, so the wait is tracked here.
+ */
+let documentInFlight = false;
+
 /** Opens the decrypted-deed modal when the visitor is allowed to. */
 async function openDocumentModal() {
   const button = document.querySelector(".timeline-actions button");
   if (!button || button.disabled) return false;
+  documentInFlight = true;
   button.click();
   // The server decrypts the deed and fetches it from IPFS, so this can take
   // a few seconds — wait for the modal rather than a fixed short delay.
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
-    if (document.querySelector(".doc-modal")) return true;
+    if (document.querySelector(".doc-modal")) {
+      documentInFlight = false;
+      return true;
+    }
     await new Promise((r) => setTimeout(r, 100));
   }
+  documentInFlight = false;
   return false;
 }
 
 /** Closes the modal so it never covers the next step. */
 function closeDocumentModal() {
-  const close = Array.from(
-    document.querySelectorAll(".doc-modal-actions button")
-  ).find((b) => /close/i.test(b.textContent));
-  if (close) close.click();
+  const closeButton = () =>
+    Array.from(document.querySelectorAll(".doc-modal-actions button")).find((b) =>
+      /close/i.test(b.textContent)
+    );
+
+  const close = closeButton();
+  if (close) {
+    close.click();
+    return;
+  }
+
+  // The deed is still on its way. Close it the moment it arrives.
+  if (documentInFlight) {
+    const waiter = setInterval(() => {
+      const button = closeButton();
+      if (button) {
+        button.click();
+        clearInterval(waiter);
+      }
+    }, 150);
+    setTimeout(() => clearInterval(waiter), 9000);
+  }
 }
 
 /**
