@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates the monochrome SVG badge set used by README.md.
+ * Generates the brand-coloured SVG badge set used by README.md.
  *
  * Badges are committed as local assets (images/badges/*.svg) instead of remote
  * shields.io URLs so the README renders identically on GitHub, in offline
@@ -34,9 +34,10 @@ const esc = (s) =>
  * @param {string} spec.label
  * @param {string} spec.message
  * @param {string} spec.color   message-side hex (no #); label side is graphite #555
+ * @param {string} [spec.text]  message/label text hex, default ffffff
  * @param {keyof typeof ICONS} [spec.icon]
  */
-function badgeSvg({ style, label, message, color, icon }) {
+function badgeSvg({ style, label, message, color, icon, text = 'ffffff' }) {
   const big = style === 'badge';
   const h = big ? 28 : 20;
   const rx = big ? 6 : 0;
@@ -71,22 +72,22 @@ function badgeSvg({ style, label, message, color, icon }) {
   <path d="${labelPath}" fill="#555555"/>
   ${iconEl}
   <text x="${labelX}" y="${baseline}" fill="#ffffff" font-family="${FONT}" font-size="${fs}" font-weight="bold" textLength="${labelTextLen}" lengthAdjust="spacingAndGlyphs">${esc(label)}</text>
-  <text x="${labelW + pad}" y="${baseline}" fill="#ffffff" font-family="${FONT}" font-size="${fs}" font-weight="bold" textLength="${msgTextLen}" lengthAdjust="spacingAndGlyphs">${esc(message)}</text>
+  <text x="${labelW + pad}" y="${baseline}" fill="#${text}" font-family="${FONT}" font-size="${fs}" font-weight="bold" textLength="${msgTextLen}" lengthAdjust="spacingAndGlyphs">${esc(message)}</text>
 </svg>
 `;
 }
 
 const BADGES = [
   { file: 'live_app.svg', style: 'badge', label: 'LIVE APP', message: 'nosih.vercel.app', color: '000000', icon: 'vercel' },
-  { file: 'public_verifier.svg', style: 'badge', label: 'PUBLIC VERIFIER', message: '/verify', color: '141414', icon: 'shield' },
-  { file: 'interactive_tour.svg', style: 'badge', label: 'INTERACTIVE TOUR', message: '39 Live Steps', color: '1f1f1f', icon: 'cursor' },
-  { file: 'demo_video.svg', style: 'badge', label: 'DEMO VIDEO', message: 'Watch Walkthrough', color: '292929', icon: 'play' },
-  { file: 'research.svg', style: 'badge', label: 'RESEARCH', message: '100 Cited India Cases', color: '333333', icon: 'doc' },
-  { file: 'chain.svg', style: 'flat', label: 'Chain', message: 'Polygon Amoy (80002) \u2192 Hyperledger Besu QBFT', color: '000000' },
-  { file: 'contract.svg', style: 'flat', label: 'Contract', message: 'Solidity 0.8.20 \u00b7 OpenZeppelin 5', color: '181818' },
-  { file: 'storage.svg', style: 'flat', label: 'Storage', message: 'AES-256-GCM + Pinata IPFS + Supabase RLS', color: '262626' },
-  { file: 'ai_ocr.svg', style: 'flat', label: 'AI OCR', message: 'Gemini 3.6 Flash (Text + Vision)', color: '141414' },
-  { file: 'verification.svg', style: 'flat', label: 'Verification', message: '< 1.4 Seconds', color: '000000' }
+  { file: 'public_verifier.svg', style: 'badge', label: 'PUBLIC VERIFIER', message: '/verify', color: '2EA443', icon: 'shield' },
+  { file: 'interactive_tour.svg', style: 'badge', label: 'INTERACTIVE TOUR', message: '39 Live Steps', color: '0969DA', icon: 'cursor' },
+  { file: 'demo_video.svg', style: 'badge', label: 'DEMO VIDEO', message: 'Watch Walkthrough', color: 'CC0000', icon: 'play' },
+  { file: 'research.svg', style: 'badge', label: 'RESEARCH', message: '100 Cited India Cases', color: 'F9A825', icon: 'doc', text: '1F2937' },
+  { file: 'chain.svg', style: 'flat', label: 'Chain', message: 'Polygon Amoy (80002) \u2192 Hyperledger Besu QBFT', color: '8247E5' },
+  { file: 'contract.svg', style: 'flat', label: 'Contract', message: 'Solidity 0.8.20 \u00b7 OpenZeppelin 5', color: 'AA6740' },
+  { file: 'storage.svg', style: 'flat', label: 'Storage', message: 'AES-256-GCM + Pinata IPFS + Supabase RLS', color: '3ECF8E', text: '062B1F' },
+  { file: 'ai_ocr.svg', style: 'flat', label: 'AI OCR', message: 'Gemini 3.6 Flash (Text + Vision)', color: '4285F4' },
+  { file: 'verification.svg', style: 'flat', label: 'Verification', message: '< 1.4 Seconds', color: '00897B' }
 ];
 
 mkdirSync(OUT_DIR, { recursive: true });

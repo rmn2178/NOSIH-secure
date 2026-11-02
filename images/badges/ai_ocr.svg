@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="261" height="20" viewBox="0 0 261 20" role="img" aria-label="AI OCR: Gemini 3.6 Flash (Text + Vision)">
   <title>AI OCR: Gemini 3.6 Flash (Text + Vision)</title>
-  <rect width="261" height="20" rx="0" fill="#141414"/>
+  <rect width="261" height="20" rx="0" fill="#4285F4"/>
   <path d="M0,0 H56 V20 H0 Q0,20 0,20 V0 Q0,0 0,0 Z" fill="#555555"/>
   
   <text x="8" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="40" lengthAdjust="spacingAndGlyphs">AI OCR</text>

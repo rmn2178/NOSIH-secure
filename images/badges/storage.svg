@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="314" height="20" viewBox="0 0 314 20" role="img" aria-label="Storage: AES-256-GCM + Pinata IPFS + Supabase RLS">
   <title>Storage: AES-256-GCM + Pinata IPFS + Supabase RLS</title>
-  <rect width="314" height="20" rx="0" fill="#262626"/>
+  <rect width="314" height="20" rx="0" fill="#3ECF8E"/>
   <path d="M0,0 H62 V20 H0 Q0,20 0,20 V0 Q0,0 0,0 Z" fill="#555555"/>
   
   <text x="8" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="46" lengthAdjust="spacingAndGlyphs">Storage</text>
-  <text x="70" y="14" fill="#ffffff" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="236" lengthAdjust="spacingAndGlyphs">AES-256-GCM + Pinata IPFS + Supabase RLS</text>
+  <text x="70" y="14" fill="#062B1F" font-family="Verdana, 'DejaVu Sans', Geneva, sans-serif" font-size="10" font-weight="bold" textLength="236" lengthAdjust="spacingAndGlyphs">AES-256-GCM + Pinata IPFS + Supabase RLS</text>
 </svg>
