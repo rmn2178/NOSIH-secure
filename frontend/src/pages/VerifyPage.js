@@ -114,6 +114,7 @@ export default function VerifyPage() {
       if (status === 401) msg = "Sign in as a registrar to view the original deed.";
       else if (status === 409) msg = "This record is not confirmed on-chain, so its deed is not served.";
       else if (status === 404) msg = "This record's deed could not be found.";
+      else if (status === 502 || status === 504) msg = "Document is still propagating on IPFS. Please retry in a few moments.";
       setViewErrors((m) => ({ ...m, [recordId]: msg }));
     } finally {
       setViewingId("");

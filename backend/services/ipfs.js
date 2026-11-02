@@ -184,7 +184,7 @@ export function getIPFSUrl(cid) {
 
 export async function fetchIPFSFile(cid) {
   const urls = getIPFSGatewayUrls(cid);
-  const timeout = Number(process.env.IPFS_FETCH_TIMEOUT_MS || 15000);
+  const timeout = Number(process.env.IPFS_FETCH_TIMEOUT_MS || 30000);
   const controller = new AbortController();
 
   const racePromises = urls.map((url) =>
