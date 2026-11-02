@@ -105,4 +105,22 @@ if (!process.env.VERCEL) {
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 }
 
+// ── Shutdown ─────────────────────────────────────────────
+// The OCR engine runs in a worker thread. Terminating the process while that
+// thread is still alive trips a libuv assertion, so the worker is closed
+// first. On Vercel the process is frozen rather than killed, and the worker
+// resumes with the next request.
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, async () => {
+    console.log(`\n[shutdown] ${signal} — closing the OCR worker`);
+    try {
+      const { shutdownExtraction } = await import("./services/ai.js");
+      await shutdownExtraction();
+    } catch {
+      /* the worker is going away anyway */
+    }
+    process.exit(0);
+  });
+}
+
 export default app;

@@ -1,22 +1,32 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "web": {
-      "root": "frontend/",
-      "framework": "create-react-app",
-      "buildCommand": "npm run build",
-      "outputDirectory": "build",
-      "rewrites": [
-        { "source": "/(.*)", "destination": "/index.html" }
-      ]
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/[...].js",
+      "use": "@vercel/node",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     },
-    "api": {
-      "root": "backend/",
-      "framework": "express"
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "api" } },
-    { "source": "/(.*)", "destination": { "service": "web" } }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...]"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/build/index.html"
+    }
   ]
 }
