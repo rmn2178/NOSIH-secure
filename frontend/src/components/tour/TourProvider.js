@@ -19,6 +19,9 @@ const TourContext = createContext(null);
 const POSITION_KEY = "nosih.tour.position";
 const DECISION_KEY = "nosih.tour.decision";
 
+/** How long the last step rests before the walkthrough closes itself. */
+const LAST_STEP_DWELL = 4000;
+
 /** The registrar session, read straight from sessionStorage. */
 function isSignedIn() {
   try {
@@ -50,6 +53,106 @@ async function waitForElement(anchor, timeout = 4000) {
   return null;
 }
 
+/** True when the element already sits comfortably inside the viewport. */
+function isInView(element) {
+  const box = element.getBoundingClientRect();
+  const margin = 48;
+  // Something taller than the viewport can never be fully visible, and
+  // scrolling it would not help.
+  if (box.height >= window.innerHeight - margin * 2) return true;
+  return box.top >= margin && box.bottom <= window.innerHeight - margin;
+}
+
+/**
+ * Waits for the page to stop growing.
+ *
+ * Images and late data change the height of the page, and anything already
+ * on screen moves down when they do. Placing the spotlight before that
+ * happens leaves it pointing at the wrong place.
+ */
+async function waitForLayoutToSettle(timeout = 700) {
+  const started = Date.now();
+  let lastHeight = document.documentElement.scrollHeight;
+  let stable = 0;
+  while (Date.now() - started < timeout) {
+    await new Promise((r) => setTimeout(r, 100));
+    const height = document.documentElement.scrollHeight;
+    if (height === lastHeight) {
+      if (++stable >= 2) return;
+    } else {
+      stable = 0;
+      lastHeight = height;
+    }
+  }
+}
+
+/** Waits until a smooth scroll has come to rest. */
+async function waitForScrollToSettle() {
+  const started = Date.now();
+  const deadline = started + 1600;
+
+  await new Promise((resolve) => {
+    let last = null;
+    let stable = 0;
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("scrollend", finish);
+      resolve();
+    };
+
+    // Chrome and Safari announce the end of a smooth scroll themselves.
+    if ("onscrollend" in window) window.addEventListener("scrollend", finish);
+
+    const poll = () => {
+      const y = Math.round(window.scrollY);
+      if (y === last) stable += 1;
+      else {
+        stable = 0;
+        last = y;
+      }
+      // Four steady samples, and never before the scroll has had a chance to
+      // start — a smooth scroll that has not begun yet looks perfectly still.
+      if ((stable >= 4 && Date.now() - started > 450) || Date.now() > deadline) {
+        finish();
+        return;
+      }
+      setTimeout(poll, 60);
+    };
+    setTimeout(poll, 60);
+  });
+}
+
+/**
+ * Scrolls the element into view and waits for the scroll to settle.
+ *
+ * The spotlight is frozen while this runs, so it has to land on the element's
+ * final position rather than chasing it mid-scroll.
+ */
+async function scrollIntoViewAndSettle(element) {
+  if (prefersReducedMotion()) {
+    element.scrollIntoView({ block: "center" });
+    return;
+  }
+
+  // Nothing to do when it is already on screen — most steps are like this,
+  // and skipping the wait keeps the tour moving at a comfortable pace.
+  if (!isInView(element)) {
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    await waitForScrollToSettle();
+  }
+
+  // The page may have shifted under us while the scroll was running. Let it
+  // settle and take the element to the middle of the screen once more.
+  if (!isInView(element)) {
+    await waitForLayoutToSettle();
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    await waitForScrollToSettle();
+  }
+}
+
 function readPosition() {
   try {
     const raw = localStorage.getItem(POSITION_KEY);
@@ -78,7 +181,9 @@ export function TourProvider({ children }) {
   const [stepIndex, setStepIndex] = useState(-1);
   const [gate, setGate] = useState(null); // index of a step that needs a session
   const [target, setTarget] = useState(null);
+  const [placement, setPlacement] = useState("bottom");
   const [visible, setVisible] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [resumeIndex, setResumeIndex] = useState(() => readPosition());
   const [skipped, setSkipped] = useState(() => {
@@ -90,8 +195,17 @@ export function TourProvider({ children }) {
   });
 
   const handledDeepLink = useRef(false);
+  const dwellTimer = useRef(null);
   const step = stepIndex >= 0 ? TOUR_STEPS[stepIndex] : null;
   const total = TOUR_STEPS.length;
+
+  // A pending auto-finish must not survive the tour being torn down.
+  useEffect(
+    () => () => {
+      if (dwellTimer.current) clearTimeout(dwellTimer.current);
+    },
+    []
+  );
 
   /** Remembers the position so the tour can be resumed later. */
   const persist = useCallback((index) => {
@@ -193,16 +307,21 @@ export function TourProvider({ children }) {
     setStatus("done");
     setStepIndex(-1);
     setTarget(null);
+    setMoving(false);
     setVisible(false);
   }, []);
 
   /** Pause and remember where we were. ESC and Skip both land here. */
   const skip = useCallback(() => {
     if (stepIndex >= 0) persist(stepIndex);
+    // The step does not change when the tour pauses, so its own cleanup —
+    // closing the deed modal, for one — has to run here.
+    step?.after?.().catch?.(() => {});
     setStatus("paused");
+    setMoving(false);
     setVisible(false);
     setTarget(null);
-  }, [stepIndex, persist]);
+  }, [stepIndex, persist, step]);
 
   const end = useCallback(() => {
     try {
@@ -214,6 +333,7 @@ export function TourProvider({ children }) {
     setStatus("idle");
     setStepIndex(-1);
     setTarget(null);
+    setMoving(false);
     setVisible(false);
   }, []);
 
@@ -224,7 +344,9 @@ export function TourProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      setVisible(false);
+      // The spotlight holds its position while the page moves underneath it,
+      // then travels to the new element. Nothing blinks out.
+      setMoving(true);
 
       const current = `${location.pathname}${location.search}`;
       if (current !== step.route) navigate(step.route);
@@ -236,6 +358,11 @@ export function TourProvider({ children }) {
       }
       if (cancelled) return;
 
+      // A hook can change the page — the register preview swaps in a longer
+      // parcel panel, for instance. Let the reflow finish before the
+      // spotlight is placed, or it lands on the old geometry.
+      if (step.before) await waitForLayoutToSettle();
+
       const element = await waitForElement(step.anchor);
       if (cancelled) return;
 
@@ -243,6 +370,7 @@ export function TourProvider({ children }) {
         if (process.env.NODE_ENV !== "production") {
           console.warn(`[tour] anchor not found for "${step.id}": ${step.anchor}`);
         }
+        setMoving(false);
         setStepIndex((current_) => {
           const fallback = TOUR_STEPS[current_ + 1];
           if (!fallback) {
@@ -255,17 +383,33 @@ export function TourProvider({ children }) {
         return;
       }
 
-      element.scrollIntoView({
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
-        block: "center",
-      });
+      await scrollIntoViewAndSettle(element);
+      if (cancelled) return;
 
+      // Releasing the spotlight and the new target in the same commit lets
+      // the hole travel from where it was to where it belongs. The card's
+      // placement moves with it, so the card glides once rather than twice.
       setTarget(element);
+      setPlacement(step.placement);
+      setMoving(false);
       setVisible(true);
+
+      // The last step ends the tour on its own. Holding a card the visitor
+      // has to dismiss is worse than letting the walkthrough close itself.
+      if (stepIndex === TOUR_STEPS.length - 1) {
+        dwellTimer.current = setTimeout(() => {
+          dwellTimer.current = null;
+          finish();
+        }, LAST_STEP_DWELL);
+      }
     })();
 
     return () => {
       cancelled = true;
+      if (dwellTimer.current) {
+        clearTimeout(dwellTimer.current);
+        dwellTimer.current = null;
+      }
     };
   }, [stepIndex, status]);
 
@@ -353,7 +497,7 @@ export function TourProvider({ children }) {
 
       {status === "running" && (
         <>
-          <Spotlight target={target} visible={visible} />
+          <Spotlight target={target} visible={visible} moving={moving} />
           <TourTooltip
             step={step}
             gate={gate}
@@ -361,6 +505,7 @@ export function TourProvider({ children }) {
             stepNumber={stepIndex + 1}
             total={total}
             target={target}
+            placement={placement}
             onNext={next}
             onPrev={prev}
             onSkip={skip}

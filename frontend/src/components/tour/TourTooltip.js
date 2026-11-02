@@ -51,6 +51,7 @@ export function TourTooltip({
   stepNumber,
   total,
   target,
+  placement,
   onNext,
   onPrev,
   onSkip,
@@ -62,11 +63,29 @@ export function TourTooltip({
   // ── Keep the card next to the hole ────────────────────
   useLayoutEffect(() => {
     const place = () => {
-      const rect = target ? target.getBoundingClientRect() : null;
+      if (!target) return;
+
+      const rect = target.getBoundingClientRect();
+      if (!rect.width && !rect.height) {
+        // The element has gone — the page moved on. Hold the card where it
+        // is so it glides to the new spot, but keep it on screen.
+        setPosition((p) => ({
+          left: Math.min(
+            Math.max(p.left, MARGIN),
+            Math.max(MARGIN, window.innerWidth - size.width - MARGIN)
+          ),
+          top: Math.min(
+            Math.max(p.top, MARGIN),
+            Math.max(MARGIN, window.innerHeight - size.height - MARGIN)
+          ),
+        }));
+        return;
+      }
+
       setPosition(
         computePosition(
           rect,
-          step?.placement,
+          placement,
           size.width,
           size.height,
           window.innerWidth,
@@ -95,7 +114,7 @@ export function TourTooltip({
       window.removeEventListener("scroll", onResize, true);
       if (observer) observer.disconnect();
     };
-  }, [target, step?.placement, size.width, size.height]);
+  }, [target, placement, size.width, size.height]);
 
   // ── Focus the card, and keep Tab inside it ────────────
   useEffect(() => {
@@ -147,20 +166,22 @@ export function TourTooltip({
         aria-labelledby="tour-gate-title"
         style={{ left: position.left, top: position.top }}
       >
-        <h3 id="tour-gate-title" className="tour-tooltip-title">
-          Sign in to continue
-        </h3>
-        <p className="tour-tooltip-body">
-          The next part of the tour covers the registrar side of the system. Sign in
-          with the demo account and the walkthrough carries on from there.
-        </p>
-        <div className="tour-tooltip-actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={signIn}>
-            <LogIn size={14} strokeWidth={1.75} aria-hidden="true" /> Sign in as the demo registrar
-          </button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={onSkip}>
-            <X size={14} strokeWidth={1.75} aria-hidden="true" /> Skip
-          </button>
+        <div className="tour-card-body" key="gate">
+          <h3 id="tour-gate-title" className="tour-tooltip-title">
+            Sign in to continue
+          </h3>
+          <p className="tour-tooltip-body">
+            The next part of the tour covers the registrar side of the system. Sign in
+            with the demo account and the walkthrough carries on from there.
+          </p>
+          <div className="tour-tooltip-actions">
+            <button type="button" className="btn btn-primary btn-sm" onClick={signIn}>
+              <LogIn size={14} strokeWidth={1.75} aria-hidden="true" /> Sign in as the demo registrar
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={onSkip}>
+              <X size={14} strokeWidth={1.75} aria-hidden="true" /> Skip
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -183,40 +204,44 @@ export function TourTooltip({
         <span className="tour-progress-fill" style={{ width: `${progress * 100}%` }} />
       </div>
 
-      <div className="tour-tooltip-head">
-        <h3 id="tour-title" className="tour-tooltip-title">
-          {step.title}
-        </h3>
-        <span className="tour-counter">
-          {stepNumber} / {total}
-        </span>
-      </div>
+      {/* Keyed on the step, so the copy rises into place instead of the
+          whole card blinking out and back in. */}
+      <div className="tour-card-body" key={step.id}>
+        <div className="tour-tooltip-head">
+          <h3 id="tour-title" className="tour-tooltip-title">
+            {step.title}
+          </h3>
+          <span className="tour-counter">
+            {stepNumber} / {total}
+          </span>
+        </div>
 
-      <p className="tour-tooltip-body">{step.body}</p>
+        <p className="tour-tooltip-body">{step.body}</p>
 
-      <div className="tour-tooltip-actions">
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={onNext}
-        >
-          {stepNumber >= total ? "Finish" : "Next"}
-          <ArrowRight size={14} strokeWidth={1.75} aria-hidden="true" />
-        </button>
+        <div className="tour-tooltip-actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={onNext}
+          >
+            {stepNumber >= total ? "Finish" : "Next"}
+            <ArrowRight size={14} strokeWidth={1.75} aria-hidden="true" />
+          </button>
 
-        <button
-          type="button"
-          className="btn btn-outline btn-sm"
-          onClick={onPrev}
-          disabled={stepNumber <= 1}
-          aria-label="Previous step"
-        >
-          <ArrowLeft size={14} strokeWidth={1.75} aria-hidden="true" />
-        </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={onPrev}
+            disabled={stepNumber <= 1}
+            aria-label="Previous step"
+          >
+            <ArrowLeft size={14} strokeWidth={1.75} aria-hidden="true" />
+          </button>
 
-        <button type="button" className="btn btn-outline btn-sm" onClick={onSkip}>
-          <X size={14} strokeWidth={1.75} aria-hidden="true" /> Skip
-        </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onSkip}>
+            <X size={14} strokeWidth={1.75} aria-hidden="true" /> Skip
+          </button>
+        </div>
       </div>
     </div>
   );
