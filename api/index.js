@@ -1,11 +1,27 @@
 /**
  * Vercel Serverless Function Entry Point
- * 
- * This wraps the Express backend for Vercel's serverless environment.
- * All API routes are handled through this single function.
+ *
+ * Wraps the Express backend for Vercel's serverless environment.
+ * All /api/* routes are handled through this single function.
+ *
+ * The backend uses ESM ("type": "module" in backend/package.json).
+ * This file re-exports the Express app for Vercel's @vercel/node runtime.
  */
 
-import app from "../backend/server.js";
+// @vercel/node runtime uses the "type" field from the nearest package.json.
+// The backend's package.json has "type": "module", so dynamic import works.
+// We use a thin CommonJS wrapper that async-imports the ESM backend.
 
-// Vercel expects this specific export format
-export default app;
+let appPromise;
+
+function getApp() {
+  if (!appPromise) {
+    appPromise = import("../backend/server.js").then((mod) => mod.default);
+  }
+  return appPromise;
+}
+
+export default async function handler(req, res) {
+  const app = await getApp();
+  return app(req, res);
+}

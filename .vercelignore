@@ -1,9 +1,32 @@
-# Never upload local secrets or generated output to Vercel.
-node_modules/
-**/node_modules/
+# Local secrets and generated output
+.env
+.env.local
 **/.env
 **/.env.local
+
+# Dependencies (Vercel installs fresh)
+node_modules/
+**/node_modules/
+
+# Hardhat build artifacts (smart contracts, not needed for web deploy)
 artifacts/
 cache/
+
+# Tests and scripts not needed in production
 test/
+scripts/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Logs
 *.log
+.tmp-check
+
+# Smart contracts source (not needed for web deploy)
+contracts/
+
+# Large training data file
+backend/eng.traineddata
