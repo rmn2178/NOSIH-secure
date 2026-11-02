@@ -169,7 +169,7 @@ function checkNative() {
   const packages = ["sharp", "@napi-rs/canvas"];
   for (const name of packages) {
     try {
-      require.resolve(`${name}/package.json`);
+      require.resolve(name);
       ok(`${name} is installed`);
     } catch {
       bad(`${name} is installed`);
