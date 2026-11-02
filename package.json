@@ -15,6 +15,7 @@
     "check:login": "node scripts/check-login.mjs",
     "check:tour": "node scripts/check-tour-steps.mjs",
     "check:pdf": "node backend/scripts/checkPdfRender.js",
+    "check:readme": "node scripts/check-readme.mjs",
     "check:boot": "node scripts/check-boot-report.mjs",
     "check:ui-failure": "node scripts/check-ui-failure.mjs",
     "vercel:env": "node scripts/vercel-env.mjs",

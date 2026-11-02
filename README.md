@@ -11,8 +11,10 @@ The testnet deployment configured in this checkout is `0xE5a941d9628A7d7Ab497636
 ## Contents
 
 - [Overview](#overview)
+- [The Innovations](#the-innovations)
 - [Architecture](#architecture)
 - [How It Works](#how-it-works)
+- [The Pipelines](#the-pipelines)
 - [Identity, Hashing and Privacy](#identity-hashing-and-privacy)
 - [Ownership Chain and Linking](#ownership-chain-and-linking)
 - [Smart Contract](#smart-contract)
@@ -61,6 +63,231 @@ What it does **not** establish:
 - It does not prove legal title or the authenticity of the underlying transaction. A hash match only proves that a document matches a registered version.
 - It is not fully decentralised: a registrar, a database, an IPFS pinning service, and an RPC provider remain trusted infrastructure.
 - It does not make owners anonymous. Owner IDs are pseudonymous, but repeated appearances are linkable; coarse location is public by design.
+
+---
+
+## The Innovations
+
+Land registries are usually one of two things: a database that a clerk trusts, or a
+ledger that everyone can read but nobody can use. NOSIH is a third thing — a database
+that is trusted *because* it is continuously checked against a public ledger, and a
+ledger that is useful *because* everything personal never reaches it.
+
+The twenty ideas below are the ones that make that work. Each is written as the
+problem it solves, the mechanism that solves it, and what it buys in practice.
+
+### A. Privacy by construction
+
+**1. Parcel identity is derived, not stored.**
+A parcel's identity is not a database row that someone assigns — it is a function of
+the jurisdiction, survey number and subdivision. `propertyId = HMAC-SHA256("property",
+"STATE-DISTRICT-TALUK|survey|subdivision")`, and the human-readable `LAND-…` is the
+first ten hex characters of that.
+
+> **Why it matters:** the same parcel written in two different forms produces the same
+> Land ID, so a deed cannot silently fork a parcel's history by being filed slightly
+> differently. Identity is a property of the land, not of the paperwork.
+
+**2. Keyed hashes for enumerable fields.**
+Survey numbers are small — `1`, `2`, `123/4A`. A plain SHA-256 of one on a public
+chain can be brute-forced in seconds by generating candidates until the hash matches.
+So `propertyId` and `surveyNumberHash` are HMAC-SHA256 keyed with a server-held
+`HASH_PEPPER`, and owner identities are keyed hashes of normalised name plus government
+ID reference.
+
+> **Why it matters:** the chain leaks nothing reversible, and the same land cannot be
+> enumerated by an attacker who guesses survey numbers. The trade-off is deliberate:
+> the Land ID is a *capability*, not a public derivation — nobody without the pepper
+> can recompute it.
+
+**3. Encrypt, then pin.**
+IPFS is public, permanent and content-addressed. Uploading a deed PDF to it would
+publish it to anyone who learns the CID — and the CID is written to a public chain. So
+the PDF is encrypted with AES-256-GCM (random 96-bit IV, authenticated) *before* it
+leaves the API. IPFS only ever stores ciphertext. The IV and authentication tag live in
+Postgres; the key never leaves the server.
+
+> **Why it matters:** the on-chain CID is safe to publish, because what it points at
+> is meaningless without the key. Confidentiality depends entirely on key custody —
+> which is why `DOCUMENT_ENC_KEY` must be backed up and never rotated casually.
+
+**4. Response projection as a privacy boundary.**
+The public verification API does not serialise a database row and hide fields in the
+UI. It selects an explicit allowlist of columns and returns registry IDs
+(`OWN-8F3A21C4`) instead of names. Owner names, survey numbers, areas and boundaries
+never enter a public response.
+
+> **Why it matters:** privacy is enforced by the server's query, not by the frontend's
+> discretion. There is no code path where a name could be leaked by forgetting to hide
+> it.
+
+**5. Document serving is policy-gated and fail-closed.**
+`GET /api/verify/land/:landId/document` returns the decrypted PDF only if the record
+is confirmed on-chain *and* the viewer is permitted. Unauthenticated callers get 401
+under the default `VIEW_DOCUMENT_POLICY=registrar`; a record that cannot be confirmed
+on-chain gets 409 and the document is never served.
+
+> **Why it matters:** a database-only row — the failure mode of a compromised or
+> half-migrated mirror — cannot leak a document. The check is on the read path, every
+> time, not on the write path once.
+
+### B. Truth anchored in a public ledger
+
+**6. One chain write per registration — everything else is free.**
+The duplicate-document check, the head lookup, the owner resolution and the link
+resolution all happen against Postgres before the transaction is built. The contract
+then stores the twelve resulting fields in a single `registerRecord` call. Chain
+*reads* are `view` functions and cost nothing.
+
+> **Why it matters:** registration costs one gas payment regardless of how deep the
+> parcel's history is, and the common failure modes (duplicate, bad link) are caught
+> for free before anything is signed.
+
+**7. Off-chain linking, on-chain anchoring.**
+The contract deliberately does not walk history. `previousRecordId` and `previousOwnerId`
+are resolved by the registrar backend and passed in as trusted values. The chain stores
+the *result* of the linkage rather than re-deriving it.
+
+> **Why it matters:** flat gas, one write, no on-chain read amplification. The
+> trade-off is honest: the API's link resolution becomes part of the trusted base. That
+> is a choice, and the contract's docblock says so.
+
+**8. Three-way integrity check on every public read.**
+For each record the API compares the database mirror against the contract on three
+independent axes — `documentHash`, `propertyId`, and the revoked flag — and returns a
+per-record integrity block plus an `allOnChain` roll-up for the parcel.
+
+> **Why it matters:** a drifted or tampered database is detectable *per record*, not
+> merely trusted. The verifier sees exactly which record failed and on which axis.
+
+**9. Hash matching as public proof without public disclosure.**
+A visitor drops a PDF into the verifier. The API hashes the bytes and looks for a
+matching `document_hash`. The verdict distinguishes four cases: no match, registered
+under a different Land ID, matches a revoked version, or matches a version that is not
+current.
+
+> **Why it matters:** anyone can prove *a document matches a registered version*
+> without the registry ever publishing the document. This is the cryptographic core of
+> the public portal.
+
+**10. Dual-path AI extraction, chosen automatically.**
+One endpoint, two strategies. The PDF's text layer is probed first; if it holds at
+least 200 characters, Gemini structures that text (fast, cheap, accurate). Otherwise the
+first three pages are rendered to 1600 px JPEGs and sent to Gemini's vision model.
+
+> **Why it matters:** there is no "scanned mode" toggle and no separate code path for
+> the user to choose correctly. A digital deed and a photocopy of a digital deed are
+> the same upload.
+
+**11. The AI pre-fills; it never decides.**
+The extraction prompt forbids guessing. The response is re-validated — dates must match
+`YYYY-MM-DD` or are discarded, areas are re-parsed as numbers — and a usefulness gate
+requires a survey number, a location and at least one party before the result is even
+offered. The registrar reviews and edits every field.
+
+> **Why it matters:** no value that reaches the chain was ever chosen by a model. The
+> AI reduces typing; it does not exercise judgement.
+
+### C. History that repairs itself
+
+**12. Revocation is additive and restores the head.**
+Records are never deleted. A registrar marks a record revoked on-chain (with a
+mandatory reason) and in the mirror. If the revoked record was the parcel head and its
+predecessor is still active, the predecessor becomes the head again.
+
+> **Why it matters:** the chain is an append-only audit trail, and the parcel's current
+> owner is always well-defined even after a revocation.
+
+**13. The void-transfer rule.**
+When a head has been revoked, its transfer is void — so for the *next* deed on that
+parcel, the seller is the owner **before** the revoked record, not the owner it named.
+
+> **Why it matters:** revoking a fraudulent transfer does not corrupt the ownership
+> chain that follows it. This is a real legal distinction that most implementations
+> miss.
+
+**14. Deterministic identity with a validated human override.**
+If the location on a new deed is spelled differently from an earlier deed on the same
+parcel, the registrar may enter the existing Land ID. The override is validated against
+a real record — it must exist, and its stored identity is reused so the history does
+not split.
+
+> **Why it matters:** the system is deterministic by default and forgiving on
+> request, but the escape hatch is checked rather than trusted.
+
+### D. Systems that fail loudly and prove themselves
+
+**15. Misconfiguration is reported, never fatal.**
+The backend audits its environment at boot. A missing variable is *not* `process.exit(1)`.
+The server stays up, `/api/health` returns 503 with the exact list of missing or
+malformed variables, and every other route answers with the same detail.
+
+> **Why it matters:** the previous behaviour — exiting at import time — surfaced on
+> Vercel as `FUNCTION_INVOCATION_FAILED` on every route with no hint of the cause.
+> Now a broken deployment is diagnosable from a browser.
+
+**16. The frontend cannot be blanked by an API error.**
+`apiErrorMessage()` coerces every error shape into a string: `{error: "…"}`,
+`{error: {code, message}}`, `{message}`, or a plain-text gateway body. An
+`ErrorBoundary` wraps the whole tree, including the router and the tour provider.
+
+> **Why it matters:** the platform's error envelope used to be placed directly into
+> React state, which threw error #31 and unmounted the entire tree — the white page.
+> The worst case is now a readable message with a link to `/api/health`.
+
+**17. Every artefact verifies itself.**
+Thirteen `check:*` scripts are part of the project, not an afterthought, alongside a
+read-only smoke test:
+
+| Script | What it proves |
+|---|---|
+| `check:env` | Every variable is present, correctly shaped, and usable |
+| `check:runtime` | The registrar wallet has gas and the seeded users exist |
+| `check:gas` | How many registrations the current balance covers |
+| `check:services` | Supabase, Pinata and the chain accept the live credentials |
+| `check:jwt` | The Pinata token is actually accepted by Pinata |
+| `check:ipfs` | The real upload path works, with either credential style |
+| `check:vercel` | The README's env list covers every variable the code reads |
+| `check:login` | The exact browser request sequence, step by step |
+| `check:boot` | A deliberately broken backend stays up and names its missing variables |
+| `check:ui-failure` | The production build shows a message, not a blank page, against a broken API |
+| `check:pdf` | Both PDF.js paths work, and it exits 1 if the worker file is missing |
+| `check:tour` | Every tour anchor still exists in the rendered markup |
+| `check:readme` | Every box diagram in this README is aligned |
+| `smoke:api` | The protected read endpoints answer, read-only — no registration, no chain write |
+
+> **Why it matters:** each of these exists because a real failure was observed and
+> diagnosed. The set is the project's immune system.
+
+**18. One env file, resolved by module location.**
+`backend/env.js` resolves the repository-root `.env` from its own path, not from the
+working directory. On Vercel there is no file — the platform injects the variables and
+the same code path becomes a no-op.
+
+> **Why it matters:** `node backend/server.js`, `npm --prefix backend run dev` and
+> `npm run smoke:api` all read the same secrets, and local and production share one
+> configuration code path.
+
+**19. The walkthrough catalogue is verified against the markup.**
+A CSS selector is just a string. Nothing in a normal build notices when a class is
+renamed and the tour's spotlight silently points at nothing. `check:tour` confirms
+every anchor token still exists in the rendered source, that each step's auth flag
+matches the route's protection in `App.js`, and that the fixture parcel agrees with
+the live verify API.
+
+> **Why it matters:** onboarding cannot rot silently.
+
+### E. The registry as a product
+
+**20. A guided walkthrough that drives the real application.**
+A 39-step tour across five surfaces, implemented from scratch with zero tour
+libraries. It navigates real routes, scrolls real elements, opens real modals, pauses
+at a sign-in gate and resumes afterwards. The spotlight is one fixed rectangle moved
+onto the anchor and darkened with an oversized `box-shadow`; the hole is
+`pointer-events: none`, so the page underneath stays usable.
+
+> **Why it matters:** onboarding is a feature that behaves like the product, not a
+> deck of screenshots that lies about it.
 
 ---
 
@@ -253,6 +480,577 @@ Anyone with the Land ID can load the parcel timeline. The API checks every recor
 ### 9. Revocation
 
 A registrar supplies a reason (required, max 300 characters). The API calls `revokeRecord` on-chain, then records the status, transaction hash, timestamp, and reason in Supabase. If the revoked record was the parcel head and its predecessor is still active, the predecessor becomes the head again. Revocation never deletes data.
+
+---
+
+## The Pipelines
+
+This section traces every pipeline in the system end to end: what triggers it, what
+each stage does, where it can fail, and how you prove it works. The diagrams are
+plain text so they render identically everywhere.
+
+### Pipeline 0 — Request lifecycle (every request)
+
+```
+  Browser
+     │
+     ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │ backend/server.js                                                │
+  │                                                                  │
+  │  1. import "./env.js"      → loads <repo>/.env (no-op on         │
+  │                              Vercel, where vars are injected)    │
+  │  2. auditEnv()             → 5 required vars audited             │
+  │  3. express.json() / urlencoded()                                │
+  │  4. cors()                 → FRONTEND_URL allowlist +            │
+  │                              any localhost port                  │
+  │  5. GET /api/health        → ALWAYS answers (200 or 503)         │
+  │  6. misconfig gate         → 503 + problems, if audit failed     │
+  │  7. router                 → /api/auth · /api/land · /api/verify │
+  │  8. 404 handler            → { error: "Route not found" }        │
+  │  9. global error handler   → multer LIMIT_FILE_SIZE → 413        │
+  └──────────────────────────────────────────────────────────────────┘
+     │
+     ▼
+  Response
+```
+
+The health check is registered **before** every other route, so it answers even when
+the deployment is broken. The misconfiguration gate sits after it, so a broken
+deployment still produces a readable diagnosis rather than a mystery.
+
+---
+
+### Pipeline 1 — Deed ingestion and AI extraction
+
+**Trigger:** the registrar drops a PDF onto the register page.
+**Endpoint:** `POST /api/land/extract` (multipart, field name `deed`).
+
+```
+  Drop PDF (react-dropzone)
+     │  accepts: application/pdf · .pdf · max 1 file · max 15 MB
+     ▼
+  Multer memory storage ── fileFilter: mimetype must be application/pdf
+     │
+     ▼
+  assertPdf()  ── magic bytes must be "%PDF-" (client mimetype is untrusted)
+     │
+     ▼
+  Write to os.tmpdir()/nosih-deed-<ts>.pdf      (deleted in `finally`)
+     │
+     ▼
+  ┌───────────────────────────────────────────────────────────┐
+  │ extractDeedMetadata()                                     │
+  │                                                           │
+  │  await primePdfWorker()  → pdfjs-dist/legacy/build/       │
+  │                            pdf.worker.mjs                 │
+  │                                                           │
+  │  tryPdfTextLayer()   (pdf-parse)                          │
+  │      └─ text ≥ 200 chars ──► structureWithGemini(text)    │
+  │      └─ no text layer    ──► renderPdfPages()             │
+  │                              pages 1–3 · scale 2.0        │
+  │                              pdf-to-png-converter + sharp │
+  │                              → 1600px JPEG q85            │
+  │                              → base64 inlineData          │
+  │                              └─► extractWithGeminiVision()│
+  └───────────────────────────────────────────────────────────┘
+     │
+     ▼
+  parseGeminiJsonResponse()
+     · strip ``` fences · extract {…} · JSON.parse
+     · keep only the 18 DEED_FIELDS · trim to string
+     · area      → re-parsed as a number ("2.45" → 2.45)
+     · date      → dropped unless it matches ^\d{4}-\d{2}-\d{2}$
+     │
+     ▼
+  isUsefulExtraction()?   surveyNumber ∧ (district|state) ∧ (buyer|seller)
+     │
+     ├── no  → { success:false, error:"…fill the form manually" }
+     └── yes → { success:true, data:{…} }  →  form pre-fills
+```
+
+**Failure modes**
+
+| Failure | Result |
+|---|---|
+| Not a PDF, or bad magic bytes | 400, the form stays manual |
+| Text layer below 200 chars | Falls through to the vision path |
+| PDF.js worker missing from the deployment | `Setting up fake worker failed` → caught by `npm run check:pdf` before deploy |
+| Gemini times out (60 s) or returns bad JSON | `success:false` with a readable message; the registrar types the fields |
+| Temp file leaked | `finally` removes it on every path |
+
+**Proof:** `npm run check:pdf` renders a page and reads a text layer through the same
+code. A live extraction of a text deed logs `Text layer found — Gemini text
+structuring`; of an image-only deed, `No text layer — Gemini vision`.
+
+---
+
+### Pipeline 2 — Identity derivation and hashing
+
+**Trigger:** the registrar completes the review form (or the preview request).
+**Endpoint:** `POST /api/land/preview` (JSON) and `POST /api/land/register`.
+
+```
+  Form fields
+     │
+     ▼
+  Joi validation  (stripUnknown, abortEarly:false)  → 400 with every detail
+     │
+     ▼
+  normalise()  NFKC · uppercase · keep letters/digits/.-/  · collapse spaces
+     │
+     ├── normSurvey()      "123 / 4A" → "123/4A"
+     │
+     ▼
+  buildJurisdictionCode()
+     STATE-DISTRICT-TALUK   alphanumeric only   ≤ 31 bytes
+     │
+     ▼
+  ┌───────────────────────────────────────────────────────────────┐
+  │ computeLandIdentity()                                         │
+  │                                                               │
+  │  propertyId       = HMAC-SHA256(pepper,                       │
+  │                        "property|code|sur|sub")               │
+  │  landId           = "LAND-" + propertyId[2:12]                │
+  │  surveyNumberHash = HMAC-SHA256(pepper, "survey|code|sur")    │
+  └───────────────────────────────────────────────────────────────┘
+     │
+     ▼
+  computeLandDetailsHash()  = SHA256(canonicalJson{survey, subdivision,
+                                     area, areaUnit, 4 boundaries})
+  computeMetadataHash()     = SHA256(canonicalJson{documentType,
+                                     registrationNumber, registrationDate,
+                                     sroOffice})
+  computeDocumentHash(pdf)  = SHA256(file bytes)
+  idHash(recordId)          = keccak256(recordId)
+  owner_hash                = keccak256(owner_id)
+     │
+     ▼
+  12 on-chain fields assembled ─────────────────────────────────────────
+```
+
+**Why two hash families?** `landDetailsHash`, `metadataHash` and `documentHash` are
+plain SHA-256 over canonical JSON, so **anyone holding the same data can recompute and
+check them**. `propertyId` and `surveyNumberHash` are keyed, because survey numbers
+are enumerable and a public chain would leak them.
+
+**Canonical JSON** sorts keys and normalises every value, so `{"a":1,"b":2}` and
+`{"b":2,"a":1}` hash identically, and `" Andheri "` and `"ANDHERI"` hash identically.
+
+---
+
+### Pipeline 3 — Encryption and content-addressed storage
+
+**Trigger:** the registrar submits the registration.
+**Endpoint:** `POST /api/land/register`.
+
+```
+  PDF bytes
+     │
+     ▼
+  computeDocumentHash(pdf) ─────────────────► SHA-256
+     │
+     ▼
+  Duplicate guard: SELECT ... WHERE document_hash = ?
+     ├── found → 409 { existingRecordId, existingLandId }   (free, no gas)
+     └── none → continue
+     │
+     ▼
+  ┌─────────────────────────────────────────────┐
+  │ encryptDocument(pdf)                        │
+  │   key = DOCUMENT_ENC_KEY (32 bytes)         │
+  │   iv  = randomBytes(12)                     │
+  │   AES-256-GCM                               │
+  │   → { ciphertext, iv(hex), tag(hex) }       │
+  └─────────────────────────────────────────────┘
+     │
+     ▼
+  uploadToIPFS(ciphertext, "<REC>.pdf.enc", "application/octet-stream")
+     │
+     ├── canUseV3Uploads()?  (JWT, or a UUID-shaped key)
+     │      └── POST https://uploads.pinata.cloud/v3/files
+     │      └── on failure → fall back to the legacy endpoint
+     └── else → POST https://api.pinata.cloud/pinning/pinFileToIPFS
+     │
+     ▼
+  CID  ──► written into the on-chain record
+```
+
+The file is uploaded as `application/octet-stream` with an `.enc` name. **IPFS never
+receives a readable deed.** The IV and authentication tag stay in Postgres; the key
+never leaves the server.
+
+**Failure modes**
+
+| Failure | Result |
+|---|---|
+| Pinata rejects the credential | 502 with the reason; registration aborts **before** the chain write |
+| Both Pinata endpoints fail | Same — no orphaned transaction, no half-registered record |
+| Network drop mid-upload | Same — the abort happens before any gas is spent |
+
+---
+
+### Pipeline 4 — Chain anchoring (the one write)
+
+**Trigger:** the PDF is encrypted and pinned.
+**Contract:** `LandRegistry.registerRecord(PropertyRecord)`.
+
+```
+  12 fields assembled by the API
+     │
+     │  propertyId         surveyNumberHash   jurisdictionCode
+     │  landDetailsHash    documentHash        metadataHash
+     │  ipfsCID            recordId            previousRecordId
+     │  previousOwnerId    currentOwnerId      registeredAt = 0 (ignored)
+     ▼
+  ethers v6 Wallet(ISSUER_PRIVATE_KEY) → JsonRpcProvider(Alchemy | public Amoy)
+     │
+     ▼
+  registerRecord(r)  ── onlyRegistrar modifier ──▶  Polygon Amoy
+     │   reverts on: empty recordId · empty propertyId · empty documentHash
+     │                empty CID · record exists · not an authorized registrar
+     ▼
+  tx.wait()  →  receipt
+     │
+     ▼
+  getProvider().getBlock(receipt.blockNumber).timestamp
+     │
+     ▼
+  { txHash, registeredAt }   ← the block's own clock, not the server's
+```
+
+The contract sets `registeredAt` itself from `block.timestamp`; the API reads the
+block back to mirror the same value into Postgres, so the off-chain record carries the
+**chain's** time rather than the server's.
+
+**Why the linking fields are trusted inputs:** the contract stores
+`previousRecordId` and `previousOwnerId` as given. It does not walk history, does not
+validate the link, and does not read the previous record. That is what keeps a
+registration to one transaction and its gas flat.
+
+---
+
+### Pipeline 5 — Off-chain mirror and head management
+
+**Trigger:** the chain write confirmed.
+
+```
+  head = SELECT … WHERE land_id = ? AND is_latest = true
+     │
+     ├── head exists → UPDATE land_records SET is_latest = false WHERE id = head.id
+     │                    (on failure → 500, previous head untouched)
+     │
+     ▼
+  INSERT INTO land_records (41 columns)
+     · 12 on-chain fields as 0x-hex
+     · private details (survey, area, 4 boundaries, village/taluk/district/state)
+     · document metadata (type, registration number/date, SRO office)
+     · enc_iv · enc_tag · ipfs_cid · tx_hash · qr_code_data · verify_url
+     · is_latest = true · status = 'active' · registered_by = req.userId
+     │
+     ├── insert fails → restore the previous head to is_latest = true
+     │                  → 500 with { recordId, txHash } in the payload
+     │                  → log "CHAIN WRITTEN BUT DB INSERT FAILED"
+     │                  → manual reconciliation required
+     └── insert succeeds
+           │
+           ▼
+      201 { landId, recordId, linked, previousRecordId, previousOwnerId,
+            currentOwnerId, txHash, ipfsCID, documentHash, registeredAt,
+            verifyUrl, qrCode }
+```
+
+**The head invariant** is enforced by the database, not by application code:
+
+```sql
+create unique index land_records_one_latest_per_land
+  on land_records (land_id) where is_latest;
+```
+
+A partial unique index means "exactly one current record per parcel" is a **schema
+constraint**. Two concurrent registrations for the same parcel cannot both become the
+head — the second insert fails, its head is restored, and the chain write is reported
+for reconciliation.
+
+---
+
+### Pipeline 6 — QR issuance
+
+**Trigger:** after the chain write, for every registration and every public view.
+
+```
+  landId  →  buildVerifyUrl()
+              VERIFY_BASE_URL (if non-local)
+              else  x-forwarded-proto + x-forwarded-host + "/verify"
+              else  http://localhost:3000/verify
+              →  <base>?landId=LAND-XXXXXXXXXX
+     │
+     ▼
+  QRCode.toBuffer(url, { width:480, margin:2, errorCorrectionLevel:"M",
+                          color:{ dark:"#1E2126", light:"#FFFFFF" } })
+     │
+     ▼
+  sharp: 480×480 white canvas
+     ├─ composite QR PNG at (0,0)
+     └─ composite an SVG label strip (480×84):
+            LAND-XXXXXXXXXX        (monospace, 30px, bold)
+            NOSIH Land Registry · scan to verify   (16px, grey)
+     │
+     ▼
+  PNG ─┬─► data:image/png;base64,…  → stored in land_records.qr_code_data
+        │                             and returned in the receipt
+        └─► GET /api/verify/land/:landId/qr  (public PNG, cached 24 h)
+```
+
+The base URL is derived from the **incoming request**, so the QR is correct on every
+deployment without a deployment-specific environment variable.
+
+---
+
+### Pipeline 7 — Public verification and integrity proof
+
+**Trigger:** someone scans the QR or types a Land ID.
+**Endpoint:** `GET /api/verify/land/:landId` — no authentication.
+
+```
+  ?landId=LAND-XXXXXXXXXX
+     │
+     ▼
+  parseLandId()  ── must match ^LAND-[0-9A-F]{10}$
+     │  invalid → 400
+     ▼
+  SELECT the parcel's records, ordered by created_at ASC
+     │  none → 404 { found:false }
+     ▼
+  For EACH record, in parallel:
+     │
+     ├─► getRecordFromChain(record_id_hash)
+     │      ├─ recordExists(recordId)?        → false ⇒ onChain:false
+     │      └─ getRecord(recordId)            → the 12 fields + revoked flag
+     │
+     ├─ documentHashMatch = chain.documentHash == row.document_hash
+     ├─ propertyIdMatch   = chain.propertyId   == row.property_id
+     └─ statusMatch       = chain.revoked      == (row.status == "revoked")
+     │
+     │   chain read throws → { onChain:null, error:"Chain read failed: …" }
+     ▼
+  Build the timeline
+     · currentOwnerId · currentRecordId · jurisdictionCode · location
+     · recordCount · allOnChain = every record passed all three checks
+     · per record: hashes, CID, txHash, owner transfer arrow, integrity block
+     · DISCLAIMER: a hash match does not prove legal ownership
+     ▼
+  Response — owner IDs only, never names
+```
+
+The API returns owner **registry IDs** (`OWN-8F3A21C4`), not names. A verifier can see
+that ownership moved from one registry identity to another without learning who they
+are.
+
+---
+
+### Pipeline 8 — Document hash comparison
+
+**Trigger:** a visitor drops a deed PDF into the public verifier.
+**Endpoint:** `POST /api/verify/land/:landId/document` — no authentication.
+
+```
+  PDF upload
+     │
+     ▼
+  magic bytes "%PDF-"  ── invalid → 400
+     │
+     ▼
+  uploadedHash = SHA256(bytes)
+     │
+     ▼
+  SELECT … FROM land_records WHERE document_hash = uploadedHash
+     │
+     ├── no row → { match:false,
+     │              verdict:"No registered version matches this PDF." }
+     │
+     ├── row but row.land_id ≠ requested Land ID
+     │        → { match:false,
+     │            verdict:"This PDF is registered, but under a different
+     │                    Land ID." }
+     │
+     └── row matches
+          │
+          ├─ chain check fails → verdict:"Database match, but the on-chain
+          │                      hash could not be confirmed."
+          ├─ status = revoked  → verdict:"Matches a registered version that
+          │                      has been REVOKED."
+          ├─ not is_latest     → verdict:"Matches a registered version, but it
+          │                      is not the current record for this land."
+          └─ is_latest + active → verdict:"Matches the current registered
+                                  version for this land."
+```
+
+The verdict is deliberately nuanced. "This document is registered" and "this document
+is the *current* version" are different claims, and the UI tones them differently.
+
+---
+
+### Pipeline 9 — Revocation and head restoration
+
+**Trigger:** a registrar revokes a record from the records table.
+**Endpoint:** `POST /api/land/records/:recordId/revoke`.
+
+```
+  reason (required, ≤ 300 chars)
+     │  empty → 400
+     ▼
+  SELECT the record
+     │  status = 'revoked' → 409 "Record is already revoked"
+     ▼
+  revokeRecord(record_id_hash, reason)  ── on-chain, with the reason in the event
+     │  reverts on: record not found · already revoked
+     ▼
+  UPDATE land_records SET status='revoked', revoked_tx_hash, revoked_at,
+                          revoke_reason
+     │
+     ▼
+  Is this the head, and does it have a previous record?
+     │
+     ├── no  → done
+     └── yes → SELECT the previous record
+               │
+               ├── previous.status = 'active'
+               │     → this record    → is_latest = false
+               │     → previous record → is_latest = true    (head restored)
+               └── previous is also revoked → leave the head as it is
+     │
+     ▼
+  { success:true, recordId, txHash }
+```
+
+**The void-transfer rule applies on the next registration:** because the revoked
+head's transfer is void, the seller for the next deed on that parcel is the owner
+**before** the revoked record — read from `head.previous_owner_id` rather than
+`head.current_owner_id`.
+
+Nothing is ever deleted. The revocation is an append-only fact on the chain and a
+status change in the mirror.
+
+---
+
+### Pipeline 10 — The guided walkthrough engine
+
+**Trigger:** a first-time visitor accepts the walkthrough, or a `?tour=<group>` deep
+link is opened.
+**Files:** `frontend/src/components/tour/` — nine files, zero dependencies.
+
+```
+  ?tour=1 | ?tour=<group>          (deep link: no welcome prompt, decision
+     │                              written as "started")
+     ▼
+  start(index) → status = "running"
+     │
+     ▼
+  ┌───────────────────── step transition effect ─────────────────────┐
+  │                                                                  │
+  │  setMoving(true)          the spotlight FREEZES on its target    │
+  │  navigate(step.route)     if the current route differs           │
+  │  await step.before?.()    a hook may drive the page              │
+  │  await waitForLayoutToSettle()   late images/data stopped        │
+  │  await waitForElement(step.anchor)   selector exists AND has size│
+  │  await scrollIntoViewAndSettle(element)  smooth scroll + rest    │
+  │                                                                  │
+  │  setTarget(element)  ┐  released in the SAME commit, so the      │
+  │  setPlacement(step)  ┘  hole TRAVELS instead of blinking         │
+  │  setMoving(false)                                                │
+  │  setVisible(true)                                                │
+  │                                                                  │
+  │  if last step → dwellTimer = 4 000 ms → finish()                 │
+  │                                                                  │
+  │  cleanup: cancel the dwell timer, run the previous step's after()│
+  └──────────────────────────────────────────────────────────────────┘
+     │
+     ▼
+  Spotlight  →  fixed rect at the anchor, darkened with a giant box-shadow
+                hole is pointer-events:none  →  the page stays usable
+                ResizeObserver on the target AND document.body → follows reflow
+     │
+     ▼
+  TourTooltip →  card follows the hole; the copy is keyed by step.id so it
+                 re-animates on every step while the card shell stays mounted
+     │
+     ▼
+  Keyboard:  → / Enter = next   ← = previous   Esc = skip
+     │
+     ▼
+  Gate: a step with requiresAuth and no session shows "Sign in to continue".
+        The tour PAUSES at that index — it does not filter the step out —
+        and resumes at the same index once a token exists in sessionStorage.
+     │
+     ▼
+  End (any of three ways)
+     · Finish   → decision "completed", position cleared
+     · Skip/Esc → decision "skipped", position KEPT so it can resume
+     · Last step → auto-finishes after 4 000 ms
+     All three run the current step's after() hook, so the deed modal closes.
+```
+
+**The spotlight travels.** The earlier implementation faded the spotlight and the card
+out and back in on every step change, which read as a blink. Holding the hole steady
+exposed three placement faults it had been hiding — the smooth scroll had not
+finished, late data reflowed the page under the hole, and a step hook could change the
+layout before placement. All three are now handled explicitly.
+
+**Verification tiers** (`npm run check:tour`):
+
+| Tier | Runs when | Checks |
+|---|---|---|
+| 1 | Always | Catalogue is well formed; auth flags match `App.js`; every anchor token exists in the markup |
+| 2 | `--drive` | Drives the real tour in a headless browser |
+| 3 | Reachable | The fixture parcel agrees with the live verify API |
+
+---
+
+### Pipeline 11 — Deployment and verification
+
+```
+  ┌──────────────────────────── local ────────────────────────────┐
+  │  .env (repo root)                                             │
+  │     │  backend/env.js resolves it by module location          │
+  │     │  frontend/.env.local holds REACT_APP_* (build-time)     │
+  │     ▼                                                         │
+  │  npm run check:env ──► check:services ──► check:runtime       │
+  │  npm run check:pdf ──► check:tour ──► check:login             │
+  │  npm run compile && npx hardhat test                          │
+  │     ▼                                                         │
+  │  node backend/server.js   (port 5000)                         │
+  │  npm start --prefix frontend (port 3000, proxy → 5000)        │
+  └───────────────────────────────────────────────────────────────┘
+     │
+     ▼
+  ┌─────────────────────────── Vercel ────────────────────────────┐
+  │  vercel login                                                 │
+  │  npm run vercel:env        reads the root .env, pushes vars   │
+  │  git push → Vercel build                                      │
+  │                                                               │
+  │  web service:  root=frontend/  CRA build → build/             │
+  │  api service:  root=backend/   Express, zero-config           │
+  │                                                               │
+  │  /api/* → api service        /* → web service                 │
+  │                                                               │
+  │  One domain. No production CORS. No API URL to configure.     │
+  └───────────────────────────────────────────────────────────────┘
+```
+
+**Two things that bite on Vercel and are handled here:**
+
+1. **The PDF.js worker.** PDF.js imports its worker with a bundler-ignore hint, so
+   Vercel's file tracer never packaged it and the deployment failed with
+   `Setting up fake worker failed`. The fix is to import the worker *by name* in
+   `backend/services/ai.js` so the tracer has a literal specifier to follow, and to
+   pin one `pdfjs-dist` version across all dependents so `pdf-parse` and
+   `pdf-to-png-converter` share the same PDF.js. `npm run check:pdf` fails with exit 1
+   if the worker file is missing.
+
+2. **Native modules.** `sharp` and `pdf-to-png-converter` are loaded on first use, not
+   at import time, so a platform-level binary problem cannot take down the whole
+   function — only the affected feature.
 
 ---
 
@@ -820,8 +1618,9 @@ NOSIH-secure/
 ├── scripts/
 │   ├── deploy.js                   Deploy and authorise the registrar
 │   ├── addIssuer.js                Add an authorised registrar
-│   └── check-tour-steps.mjs        Verifies the walkthrough catalogue against the markup
-├── test/
+│   ├── check-tour-steps.mjs        Verifies the walkthrough catalogue against the markup
+│   ├── check-readme.mjs            Checks the README's fences and diagrams
+│   └── format-readme-diagrams.mjs  Re-pads the README's box diagrams├── test/
 │   └── LandRegistry.test.js        Four Hardhat tests
 ├── backend/
 │   ├── server.js                   Express entrypoint, CORS, routes, health
@@ -879,18 +1678,55 @@ NOSIH-secure/
 
 ## Tech Stack
 
-| Area | Technology |
-|---|---|
-| Contract | Solidity 0.8.20, OpenZeppelin Contracts 5, Hardhat 2, ethers 6 |
-| Chain | Polygon Amoy testnet (chain ID 80002); Polygon mainnet config exists |
-| API | Node.js 22, Express 4, Multer, Joi, bcryptjs, jsonwebtoken, cors, dotenv |
-| Database | Supabase Postgres, service-role access, RLS enabled |
-| Storage | Pinata IPFS v3 with legacy pinning fallback; multiple public gateways |
-| Documents | AES-256-GCM, SHA-256, HMAC-SHA256, keccak256 |
-| AI | Google Gemini via `@google/generative-ai`; text layer or vision |
-| QR | `qrcode` plus `sharp` compositing |
-| Frontend | React 18, Create React App 5, React Router 6, axios, react-dropzone, Lucide React |
-| Hosting | Vercel Services (SPA + Express), or separate projects |
+### What is used, and why
+
+| Area | Technology | Why this one |
+|---|---|---|
+| Contract | **Solidity 0.8.20**, OpenZeppelin Contracts 5 | 0.8.x gives checked arithmetic by default; OpenZeppelin's `Ownable` supplies the registrar allowlist without hand-rolling access control |
+| Contract tooling | **Hardhat 2**, `@nomic-foundation/hardhat-toolbox` | Same toolchain compiles, tests and deploys; `chainId 80002` is pinned for Amoy |
+| Chain client | **ethers v6** | Native BigInt, a first-class `Provider`/`Signer` split, and a minimal ABI so only the five functions the backend calls are exposed |
+| Chain | **Polygon Amoy** (chain ID 80002) | A real EVM testnet with cheap gas, so the whole anchoring path is exercised for real — not mocked |
+| API runtime | **Node.js 22**, **Express 4** | One file that runs as a local server *and* as a Vercel function; Express is what Vercel's zero-config runtime expects |
+| API body | **Multer** (memory storage) | Deeds are hashed, encrypted and pinned in memory; there is no reason to write plaintext to disk |
+| Validation | **Joi** | Schema-based validation with `stripUnknown`, so unknown fields cannot ride along into a hash |
+| Passwords | **bcryptjs** | 12 rounds, no native build step — so the same code runs on Vercel without a compilation step |
+| Sessions | **jsonwebtoken** | Stateless: the registrar session survives a function restart, which matters on a serverless platform |
+| Database | **Supabase Postgres** (service role) | A real relational database with constraints — the partial unique index that enforces "one head per parcel" is a Postgres feature that Postgres-less stores cannot offer |
+| Database safety | **RLS enabled, no policies** | Defence in depth: even if the publishable key leaks, no table is readable without the service-role key |
+| Storage | **Pinata IPFS** (v3 uploads, legacy fallback) | Content addressing gives a CID that is a hash of the bytes; the fallback path means a scoped key the v3 gateway rejects still works |
+| Fetch resilience | **multi-gateway race** (`Promise.any`) | The configured gateway plus four public ones are raced at once, so a single gateway outage must not make the registry unverifiable |
+| Document crypto | **AES-256-GCM** | Authenticated encryption: tampering with the ciphertext fails the tag check, not silently |
+| Hashing | **SHA-256**, **HMAC-SHA256**, **keccak256** | SHA-256 for recomputable fingerprints, HMAC for the enumerable ones, keccak256 for on-chain identifiers |
+| AI | **Google Gemini** (`@google/generative-ai`) | One model serves both the text-layer and the vision path; `thinkingBudget: 0` keeps extraction fast and predictable |
+| PDF | **pdf-parse** (text), **pdf-to-png-converter** + **sharp** (vision) | Text extraction is exact; scanned pages are rendered and downscaled to 1600 px JPEG before upload, which keeps the request small |
+| QR | **qrcode** + **sharp** compositing | The QR and its printed label are composed into one PNG, so the Land ID is legible on paper without a second print step |
+| Frontend | **React 18**, **Create React App 5** | CRA's static build output drops straight into Vercel's web service; no custom bundler configuration to keep in sync |
+| Routing | **React Router 6** | A `PrivateRoute` wrapper validates the token against the API before any protected page renders |
+| HTTP client | **axios** | Interceptors attach the JWT on every request and handle 401 globally, with a deliberate exception for the login call |
+| File input | **react-dropzone** | The same component drives the registrar's deed upload and the public verifier's hash comparison |
+| Icons | **Lucide React** | A single monochrome stroke weight across the whole interface |
+| Hosting | **Vercel Services** | One project, two services, one domain — `/api/*` to Express and everything else to the static SPA |
+| Database & pin tooling | **`@supabase/supabase-js`**, **axios**, **form-data** | The Supabase client's typed query builder; `form-data` streams the multipart upload to Pinata |
+| Tooling | **13 `check:*` scripts + a smoke test** | Every known production failure has a script that reproduces it, so the failure cannot return unnoticed |
+
+### Versions in use
+
+```
+Contract         Solidity 0.8.20  ·  OpenZeppelin 5  ·  Hardhat 2.19  ·  ethers 6
+Chain            Polygon Amoy, chainId 80002
+API              Node 22  ·  Express 4.18  ·  Joi 18  ·  Multer 1.4.5  ·  jsonwebtoken 9
+Database         Supabase Postgres via @supabase/supabase-js 2.118
+Storage          Pinata IPFS  ·  pdfjs-dist 5.4.296  (pinned, single version)
+AI               @google/generative-ai 0.24  ·  gemini-3.6-flash
+Frontend         React 18.2  ·  react-scripts 5.0.1  ·  react-router-dom 6.20
+                 react-dropzone 14.2  ·  lucide-react 1.60  ·  axios 1.6
+```
+
+`pdfjs-dist` is pinned to **5.4.296** rather than a range, and `overrides` forces every
+dependent to that same version. `pdf-parse` bundles its own PDF.js and refuses a
+worker from a different version — "The API version 5.4.296 does not match the Worker
+version 5.4.624" — so a second copy under `pdf-to-png-converter` is exactly what
+caused the mismatch.
 
 ---
 
@@ -1132,6 +1968,22 @@ npm run check:tour
 ```
 
 Current result: **PASS**. It proves the 39-step catalogue is well formed, that every route and auth flag matches `App.js`, that the sign-in gate sits at the login boundary, and that every class and attribute used by an anchor still exists in the rendered markup. See [Guided Walkthrough](#guided-walkthrough).
+
+### README structure
+
+```bash
+npm run check:readme
+```
+
+Current result: **PASS**. It confirms that the code fences are balanced — an
+unbalanced fence swallows the rest of the document — and that every box diagram has
+its right border on a single column. A diagram that has drifted out of alignment
+reads as broken, and markdown renders code blocks in a monospace font where that is
+visible at a glance.
+
+`npm run check:readme` only reports. `node scripts/format-readme-diagrams.mjs` is the
+companion that re-pads the boxes, and it is idempotent — running it twice changes
+nothing.
 
 ### Manual smoke checklist
 
