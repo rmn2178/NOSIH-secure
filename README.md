@@ -63,18 +63,13 @@
 - **Instant Public Verification (`/verify`):** Buyers, banks, and courts scan the QR or drop a PDF to verify authenticity and continuous ownership history in **~1.4 seconds** without exposing owner names.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000', 'secondaryColor': '#f4f4f4', 'tertiaryColor': '#e8e8e8'}}}%%
 flowchart LR
-    A["📄 Executed Deed PDF<br/>(Registrar Upload)"] --> B["✨ Gemini 3.6 Flash<br/>(Text / Vision OCR)"]
-    B --> C["🔐 Crypto Engine<br/>(SHA-256 + HMAC + AES-GCM)"]
-    C -->|Ciphertext Only| D[("📦 Pinata IPFS<br/>Content ID (CID)")]
-    C -->|12 Hashes & Links| E[["⛓️ Polygon / Besu<br/>LandRegistry.sol"]]
-    C -->|Private PII + Mirror| F[("🛡️ Supabase Postgres<br/>Row-Level Security")]
-    D & E & F --> G["📱 QR Code & /verify<br/>Cleared in < 1.4s"]
-
-    style A fill:#111111,stroke:#000000,stroke-width:2px,color:#ffffff
-    style E fill:#111111,stroke:#000000,stroke-width:2px,color:#ffffff
-    style G fill:#111111,stroke:#000000,stroke-width:2px,color:#ffffff
+    A["Executed deed PDF<br/>registrar upload"] --> B["Gemini 3.6 Flash<br/>text / vision OCR"]
+    B --> C["Crypto engine<br/>SHA-256 · HMAC · AES-256-GCM"]
+    C -->|ciphertext only| D[("Pinata IPFS<br/>content ID (CID)")]
+    C -->|12 hashes & links| E[["Polygon / Besu<br/>LandRegistry.sol"]]
+    C -->|private PII + mirror| F[("Supabase Postgres<br/>row-level security")]
+    D & E & F --> G["QR code & /verify<br/>cleared in &lt; 1.4 s"]
 ```
 
 | Portal Surface | Actor | Live URL | Key Capability |
@@ -101,17 +96,14 @@ flowchart LR
 - **Real Case Spotlight — Madhavaram, Chennai ([Nov 2025](https://www.thehindu.com/news/cities/chennai/sub-registrar-held-for-facilitating-fraud-in-land-registration/article70321277.ece)):** A Sub-Registrar was arrested after **7 sequential fake deeds** were registered on a 74-year-old owner's **₹1 Crore plot** using a forged *patta* — **ignoring the owner's written protest petition**.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000'}}}%%
 flowchart TD
-    ROOT["🚨 100 Verified Indian Land Fraud Cases<br/>(Across 18 States & Union Territories)"]
-    ROOT --> V1["23% · Impersonation & Fake Death/Heir Certs<br/>(Living owners declared dead; fake Aadhaar)"]
-    ROOT --> V2["20% · Sub-Registrar Collusion & Fake Deeds<br/>(Parentless deeds; fake pattas; ₹1Cr–₹600Cr grabs)"]
-    ROOT --> V3["18% · Portal & Archive Tampering<br/>(Dharani/Bhu Bharati hacks; 1930s pages torn)"]
-    ROOT --> V4["15% · Forged PoA, Gift & Settlement Deeds<br/>(Fake foreign PoAs; cancelled GPA resales)"]
-    ROOT --> V5["12% · Govt, Defence & Forest Land Grabs<br/>(₹800Cr Army land; ₹400Cr Kabul House)"]
-    ROOT --> V6["12% · Stamp/Seal Factories & Bank/NHAI Scams<br/>(2,130+ fake stamps & 60+ SRO seals seized)"]
-
-    style ROOT fill:#111111,stroke:#000000,stroke-width:2px,color:#ffffff
+    ROOT["100 verified Indian land-fraud cases<br/>across 18 states & union territories"]
+    ROOT -->|23%| V1["Impersonation, fake death<br/>& heir certificates"]
+    ROOT -->|20%| V2["Sub-registrar collusion<br/>& fake deeds"]
+    ROOT -->|18%| V3["Portal & archive<br/>tampering"]
+    ROOT -->|15%| V4["Forged PoA, gift<br/>& settlement deeds"]
+    ROOT -->|12%| V5["Govt, defence & forest<br/>land grabs"]
+    ROOT -->|12%| V6["Stamp / seal factories<br/>& bank scams"]
 ```
 
 ![Static High-Resolution Problem & 100-Case Breakdown](images/problem_statistics_bw.png)
@@ -135,20 +127,18 @@ flowchart TD
   - *Why it fails:* **Digitizing a record does not make it tamper-evident.** One misused insider account or unlogged exemption bypasses the check with no outside proof.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000'}}}%%
 flowchart LR
-    subgraph LEGACY["❌ How Legacy Portals Fail (e.g., Kaveri 2.0 / Dharani)"]
-        L1["Mandatory e-Khata /<br/>Parent Check"] --> L2["Insider Uses Unverified<br/>Exemption / DB Edit"]
-        L2 --> L3["1,332 Illegal Deeds Registered<br/>Zero Outside Proof"]
+    subgraph LEGACY["Legacy portals — Kaveri 2.0 / Dharani"]
+        direction LR
+        L1["Mandatory e-Khata /<br/>parent-deed check"] --> L2["Insider abuse: unverified<br/>exemption or DB edit"]
+        L2 --> L3[["1,332 illegal deeds,<br/>zero outside proof"]]
     end
 
-    subgraph NOSIH_WAY["✅ How NOSIH Stops the Exploit"]
-        N1["Deed PDF + Parent<br/>Owner Link"] --> N2["SHA-256 + 12 Fields<br/>Anchored On-Chain"]
-        N2 --> N3["Every Public Read Checks<br/>DB == Chain == PDF (<1.4s)"]
+    subgraph NOSIH_WAY["NOSIH"]
+        direction LR
+        N1["Deed PDF +<br/>parent-owner link"] --> N2["SHA-256 + 12 fields<br/>anchored on-chain"]
+        N2 --> N3[["Every public read:<br/>DB == Chain == PDF in &lt;1.4 s"]]
     end
-
-    style L3 fill:#111111,stroke:#000000,color:#ffffff
-    style N3 fill:#111111,stroke:#000000,color:#ffffff
 ```
 
 | Existing Solution | What It Does | Structural Gap | How NOSIH Fixes It |
@@ -174,7 +164,6 @@ flowchart LR
 - **Step 5 — Instant Public Verification (`~1.4s`):** Scanning the QR or dropping a PDF on `/verify` checks the file against the on-chain hash, the database against the contract, and revocation status in one pass.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'actorBkg': '#111111', 'actorTextColor': '#ffffff', 'actorBorder': '#000000', 'signalColor': '#000000', 'signalTextColor': '#000000'}}}%%
 sequenceDiagram
     autonumber
     participant R as Registrar (/register)
@@ -228,32 +217,28 @@ sequenceDiagram
 - **Tier 3 — Private Relational Vault (`Supabase Postgres with RLS`):** Holds owner names, survey numbers, boundaries, and AES-GCM `enc_iv` / `enc_tag`. Row-Level Security is enabled with **zero public policies** (accessible only via the server's service-role key).
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000'}}}%%
 flowchart TB
-    subgraph CLIENTS["🌐 Client Surfaces (Single Vercel Domain)"]
-        C1["Registrar Portal<br/>(/register · /records · /)"]
-        C2["Public Verifier<br/>(/verify · QR Scan · PDF Drop)"]
+    subgraph CLIENTS["Client surfaces — single Vercel domain"]
+        C1["Registrar portal<br/>/register · /records · /"]
+        C2["Public verifier<br/>/verify · QR scan · PDF drop"]
     end
 
-    subgraph API_LAYER["⚙️ Hardened Express API (/api/*)"]
-        M1["Auth & Rate Guard<br/>(JWT + Magic-Byte Check)"]
-        M2["Crypto & Identity Service<br/>(HMAC-SHA256 + AES-256-GCM)"]
-        M3["3-Way Verification Engine<br/>(DB vs. Chain vs. PDF)"]
+    subgraph API_LAYER["Hardened Express API — /api/*"]
+        M1["Auth & rate guard<br/>JWT + magic-byte check"]
+        M2["Crypto & identity service<br/>HMAC-SHA256 + AES-256-GCM"]
+        M3["3-way verification engine<br/>DB vs chain vs PDF"]
     end
 
-    subgraph STORAGE["🔒 Three Isolated Persistence Tiers"]
-        S1[("🛡️ Supabase Postgres (RLS)<br/>Private PII · IV/Tag · Head Index")]
-        S2[("📦 Pinata IPFS<br/>AES-GCM Ciphertext Only")]
-        S3[["⛓️ Smart Contract (LandRegistry.sol)<br/>12 Fingerprints & Owner Links"]]
+    subgraph STORAGE["Three isolated persistence tiers"]
+        S1[("Supabase Postgres (RLS)<br/>private PII · IV / tag · head index")]
+        S2[("Pinata IPFS<br/>AES-GCM ciphertext only")]
+        S3[["LandRegistry.sol<br/>12 fingerprints & owner links"]]
     end
 
-    C1 & C2 --> API_LAYER
+    C1 & C2 --> M1
+    M1 --> M2
     M2 --> S1 & S2 & S3
     S1 & S2 & S3 --> M3
-
-    style C1 fill:#111111,stroke:#000000,color:#ffffff
-    style C2 fill:#111111,stroke:#000000,color:#ffffff
-    style S3 fill:#111111,stroke:#000000,color:#ffffff
 ```
 
 ![3-Tier Cryptographic Architecture & 12 On-Chain Fields](images/onchain_12fields_architecture_bw.png)
@@ -277,25 +262,20 @@ flowchart TB
 ### 6.2 Three-Family Cryptographic Hashing Design
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000'}}}%%
 flowchart LR
-    subgraph H1["1. Keyed HMAC-SHA256 (With Secret HASH_PEPPER)"]
-        A1["STATE-DISTRICT-TALUK + Survey + Subdiv"] --> B1["propertyId (bytes32)<br/>& LAND-XXXXXXXXXX"]
-        A2["Jurisdiction + Survey Number"] --> B2["surveyNumberHash (bytes32)<br/>(Stops Brute-Force Enumeration)"]
+    subgraph H1["1 · Keyed HMAC-SHA256 — secret HASH_PEPPER"]
+        A1["State-district-taluk +<br/>survey + subdivision"] --> B1["propertyId (bytes32)<br/>LAND-XXXXXXXXXX"]
+        A2["Jurisdiction +<br/>survey number"] --> B2["surveyNumberHash (bytes32)<br/>blocks brute-force enumeration"]
     end
 
-    subgraph H2["2. Plain SHA-256 (Publicly Verifiable)"]
-        A3["Raw PDF Bytes"] --> B3["documentHash (bytes32)<br/>(1-Byte Edit Flips Hash)"]
-        A4["Canonical JSON (Details & Metadata)"] --> B4["landDetailsHash &<br/>metadataHash (bytes32)"]
+    subgraph H2["2 · Plain SHA-256 — publicly verifiable"]
+        A3["Raw PDF bytes"] --> B3["documentHash (bytes32)<br/>a 1-byte edit flips the hash"]
+        A4["Canonical JSON<br/>details & metadata"] --> B4["landDetailsHash +<br/>metadataHash (bytes32)"]
     end
 
-    subgraph H3["3. EVM keccak256 (On-Chain Pointers)"]
-        A5["REC-XXXXXXXX & OWN-XXXXXXXX"] --> B5["recordId · previousRecordId<br/>previousOwnerId · currentOwnerId"]
+    subgraph H3["3 · EVM keccak256 — on-chain pointers"]
+        A5["REC-XXXXXXXX &<br/>OWN-XXXXXXXX"] --> B5["recordId · previousRecordId<br/>previousOwnerId · currentOwnerId"]
     end
-
-    style B1 fill:#111111,stroke:#000000,color:#ffffff
-    style B3 fill:#111111,stroke:#000000,color:#ffffff
-    style B5 fill:#111111,stroke:#000000,color:#ffffff
 ```
 
 - **Why Keyed `HMAC-SHA256` for Survey Numbers?** Survey numbers (`1`, `2`, `123/4A`) come from a tiny keyspace. A plain SHA-256 on a public chain could be brute-forced in seconds. Keying with a 256-bit `HASH_PEPPER` prevents enumeration while keeping Land ID derivation 100% deterministic.
@@ -316,16 +296,11 @@ flowchart LR
 - **Additive Revocation & The Void-Transfer Rule:** Records are never deleted. When an authorised registrar revokes a fraudulent head record (`REC-04`), the revocation reason and tx hash are anchored on-chain, `REC-03` is automatically restored as `is_latest = true`, and the next valid transfer links directly back to **Owner C** (skipping the voided transfer).
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000'}}}%%
 flowchart LR
-    R1["Record #1 (Genesis)<br/>currOwner: Owner A"] --> R2["Record #2 (Sale)<br/>prevOwner: A → curr: B"]
-    R2 --> R3["Record #3 (Restored Head)<br/>prevOwner: B → curr: C"]
-    R3 -.->|Revoked: Fraudulent Transfer| R4["Record #4 (REVOKED)<br/>is_latest = false (Kept in Audit Trail)"]
-    R3 ==>|Void-Transfer Rule:<br/>Next Valid Sale Links to C| R5["Record #5 (New Valid Head)<br/>prevOwner: C → curr: E"]
-
-    style R3 fill:#111111,stroke:#000000,color:#ffffff
-    style R5 fill:#111111,stroke:#000000,color:#ffffff
-    style R4 fill:#e0e0e0,stroke:#555555,stroke-dasharray: 5 5,color:#333333
+    R1["Record 1 · genesis<br/>owner A"] --> R2["Record 2 · sale<br/>A → B"]
+    R2 --> R3["Record 3 · restored head<br/>B → C"]
+    R3 -.->|revoked: fraudulent transfer| R4(["Record 4 · REVOKED<br/>kept in audit trail"])
+    R3 ==>|void-transfer rule: next<br/>valid sale links to C| R5["Record 5 · new head<br/>C → E"]
 ```
 
 ---
@@ -337,7 +312,6 @@ flowchart LR
 Row-Level Security (**RLS**) is enabled on all three tables (`users`, `owners`, `land_records`) with **zero public policies**, ensuring only the backend service-role key can read or write rows.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000'}}}%%
 erDiagram
     USERS ||--o{ LAND_RECORDS : "registers (registered_by)"
     OWNERS ||--o{ LAND_RECORDS : "transfers from (previous_owner_id)"
